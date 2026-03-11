@@ -37,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+# Log CORS configuration for debugging
+logger.info(f"CORS Origins configured: {settings.cors_origins}")
+logger.info(f"CORS Origins type: {type(settings.cors_origins)}")
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -69,6 +73,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Permite todos los subdominios de Vercel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
