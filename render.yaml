@@ -17,6 +17,8 @@ services:
       # Application
       - key: APP_NAME
         value: Easy Convert API
+      - key: APP_VERSION
+        value: 1.0.0
       - key: DEBUG
         value: false
       - key: LOG_LEVEL
@@ -26,7 +28,7 @@ services:
       - key: API_V1_PREFIX
         value: /api/v1
       - key: CORS_ORIGINS
-        value: '["https://your-frontend-domain.com"]'
+        value: '["https://convert-easy-frontend.vercel.app"]'
       
       # Redis Configuration (automatically connected to managed Redis)
       - key: REDIS_URL
@@ -34,44 +36,50 @@ services:
           type: redis
           name: easy-convert-redis
           property: connectionString
-      - key: REDIS_MAX_CONNECTIONS
+      
+      # Queue Configuration
+      - key: QUEUE_NAME
+        value: easy-convert-jobs
+      - key: QUEUE_MAX_RETRIES
+        value: 3
+      - key: QUEUE_RETRY_DELAY
+        value: 2000
+      - key: QUEUE_CLEANUP_INTERVAL
+        value: 3600
+      
+      # Storage Configuration
+      - key: STORAGE_BASE_PATH
+        value: /tmp/easy-convert
+      - key: STORAGE_CHUNK_SIZE_MB
         value: 10
-      
-      # File Upload Limits
-      - key: MAX_FILE_SIZE_MB
-        value: 100
-      - key: CHUNK_SIZE_MB
-        value: 5
-      - key: TEMP_DIR
-        value: /tmp/easy_convert
-      
-      # Job Processing
-      - key: JOB_TTL_HOURS
+      - key: STORAGE_UPLOAD_TIMEOUT_MINUTES
+        value: 30
+      - key: STORAGE_RESULT_TTL_HOURS
         value: 24
-      - key: JOB_CLEANUP_HOURS
-        value: 1
+      
+      # File Size Limits
+      - key: MAX_FILE_SIZE
+        value: 104857600
+      - key: MAX_CHUNK_SIZE
+        value: 10485760
       - key: MAX_CONVERSION_TIME_SECONDS
         value: 300
-      
-      # Rate Limiting
-      - key: RATE_LIMIT_UPLOADS_PER_HOUR
-        value: 100
-      - key: RATE_LIMIT_CONCURRENT_JOBS_PER_IP
-        value: 10
-      
-      # Image Conversion Settings
-      - key: IMAGE_QUALITY
-        value: 85
       
       # Worker Settings
       - key: WORKER_CONCURRENCY
         value: 2
-      - key: WORKER_POLL_INTERVAL_SECONDS
-        value: 1
       
-      # Observability
-      - key: STRUCTURED_LOGS
-        value: true
+      # Supported Formats
+      - key: SUPPORTED_IMAGE_INPUT_FORMATS
+        value: '["jpg","jpeg","png","gif","webp","bmp","tiff","svg","heic","avif"]'
+      - key: SUPPORTED_IMAGE_OUTPUT_FORMATS
+        value: '["jpg","jpeg","png","gif","webp","bmp","tiff","ico","heic","avif"]'
+      
+      # Event Configuration
+      - key: EVENT_STREAM_MAX_LEN
+        value: 1000
+      - key: EVENT_TTL_HOURS
+        value: 24
     
     healthCheckPath: /health
     
