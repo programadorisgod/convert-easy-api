@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "Pytest Testing": {
+      "source": "pluginagentmarketplace/custom-plugin-python",
+      "sourceType": "github",
+      "computedHash": "c4a0fe6cff3110d130712978eab77becd335d25414fc21253b55ce0a05e755a4"
+    },
+    "Type Hints": {
+      "source": "pluginagentmarketplace/custom-plugin-python",
+      "sourceType": "github",
+      "computedHash": "0ef4e26c560f8c06df3d5ddfc1d6a3d9f92bfb6753dd0c78cca339eb101f11a7"
+    },
+    "fastapi": {
+      "source": "fastapi/fastapi",
+      "sourceType": "github",
+      "computedHash": "ee23d5285caf055cf164ff45dd34888d381143564666baacab8aa786f22e413a"
+    },
+    "python-backend": {
+      "source": "jiatastic/open-python-skills",
+      "sourceType": "github",
+      "computedHash": "3e05cfe0d22005cd76126b0a7d67e1b33da8a08da99d863133a37abfd47365a0"
+    }
+  }
+}

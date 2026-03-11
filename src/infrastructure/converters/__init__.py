@@ -1,0 +1,1 @@
+"""Image converters infrastructure."""

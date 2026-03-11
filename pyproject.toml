@@ -1,0 +1,37 @@
+[project]
+name = "easy_convert_api"
+version = "0.1.0"
+description = "Privacy-focused file conversion API with FastAPI"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "redis>=5.0.0",
+    "bullmq>=2.9.0",
+    "python-multipart>=0.0.9",
+    "aiofiles>=24.1.0",
+    "websockets>=13.0",
+    "python-magic>=0.4.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "shared"]
+
+[tool.fastapi]
+app = "src.main:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
