@@ -55,8 +55,7 @@ async def job_updates(job_id: str, websocket: WebSocket):
         while True:
             # Wait for client messages (mostly for keep-alive)
             try:
-                data = await websocket.receive_text()
-                logger.debug(f"Received from client: {data}")
+                await websocket.receive_text()
             except WebSocketDisconnect:
                 break
 

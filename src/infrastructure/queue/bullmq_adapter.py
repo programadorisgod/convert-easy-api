@@ -111,7 +111,6 @@ class BullMQAdapter(QueuePort):
             job = await self.queue.getJob(job_id)
 
             if not job:
-                logger.debug(f"Job {job_id} not found")
                 return None
 
             # Get job state (waiting, active, completed, failed, delayed)

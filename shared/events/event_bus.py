@@ -47,7 +47,6 @@ class EventBus:
             handler: Async function to call when event occurs
         """
         self._handlers[event_type].append(handler)
-        logger.debug(f"Subscribed handler to {event_type}")
 
     def subscribe_all(self, handler: EventHandler) -> None:
         """Subscribe a handler to all events.
@@ -56,7 +55,6 @@ class EventBus:
             handler: Async function to call for any event
         """
         self._global_handlers.append(handler)
-        logger.debug("Subscribed global event handler")
 
     async def publish(self, event: DomainEvent) -> None:
         """Publish an event to all subscribed handlers.
@@ -64,9 +62,6 @@ class EventBus:
         Args:
             event: Domain event to publish
         """
-        logger.info(
-            f"Publishing event: {event.event_type} (aggregate={event.aggregate_id})"
-        )
 
         # Call type-specific handlers
         handlers = self._handlers.get(event.event_type, [])

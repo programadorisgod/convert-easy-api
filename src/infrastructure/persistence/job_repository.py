@@ -135,7 +135,6 @@ class JobRepository:
                 if event:
                     events.append(event)
 
-            logger.debug(f"Retrieved {len(events)} event(s) for job {job_id}")
             return events
 
         except JobNotFoundError:
@@ -160,7 +159,6 @@ class JobRepository:
             events = await self.get_events(job_id)
             job = Job.from_events(job_id, events)
 
-            logger.debug(f"Reconstructed job {job_id} from {len(events)} event(s)")
             return job
 
         except JobNotFoundError:
@@ -252,7 +250,6 @@ class JobRepository:
                             if timestamp < cutoff:
                                 await self.redis.delete(key)
                                 deleted += 1
-                                logger.debug(f"Cleaned up old job stream: {key}")
 
                 if cursor == 0:
                     break
@@ -348,7 +345,6 @@ class JobRepository:
 
             if not event_type_name:
                 logger.warning(f"Unknown event type: {event_type_name}")
-                logger.debug(f"Event data keys: {list(decoded_data.keys())}")
                 return None
 
             event_class = self.EVENT_TYPE_MAP.get(event_type_name)

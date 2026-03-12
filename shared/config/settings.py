@@ -36,26 +36,17 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
         """Parse CORS origins from JSON string if needed."""
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        logger.info(f"🔍 CORS validator received: {v!r} (type: {type(v).__name__})")
 
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
-                logger.info(f"✅ Parsed JSON to: {parsed}")
                 if isinstance(parsed, list):
                     return parsed
             except json.JSONDecodeError as e:
-                logger.warning(f"❌ JSON parse failed: {e}, trying comma-separated")
                 # If it's a comma-separated string, split it
                 result = [origin.strip() for origin in v.split(",")]
-                logger.info(f"✅ Split to: {result}")
                 return result
 
-        logger.info(f"✅ Using as-is: {v}")
         return v
 
     # Redis

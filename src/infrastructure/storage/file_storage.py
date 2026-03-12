@@ -298,15 +298,10 @@ class FileStorage:
             total_chunks: Number of chunks to delete
         """
         try:
-            deleted = 0
             for i in range(total_chunks):
                 chunk_path = self._get_chunk_path(file_id, i)
                 if chunk_path.exists():
                     await aiofiles.os.remove(chunk_path)
-                    deleted += 1
-
-            if deleted > 0:
-                logger.debug(f"Cleaned up {deleted} chunks for file {file_id}")
 
         except Exception as e:
             logger.error(f"Failed to cleanup chunks for file {file_id}: {e}")
@@ -368,7 +363,6 @@ class FileStorage:
                     if mtime < cutoff_time:
                         await aiofiles.os.remove(file_path)
                         deleted += 1
-                        logger.debug(f"Deleted old file: {file_path.name}")
 
             if deleted > 0:
                 logger.info(

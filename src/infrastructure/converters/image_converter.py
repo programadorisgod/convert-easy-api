@@ -139,9 +139,6 @@ class ImageMagickConverter:
         # Add output path
         cmd.append(str(output_path))
 
-        logger.info(f"Converting {input_path.name} → {output_format}")
-        logger.debug(f"ImageMagick command: {' '.join(cmd)}")
-
         # Execute conversion
         try:
             process = await asyncio.create_subprocess_exec(
