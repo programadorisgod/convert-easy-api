@@ -108,13 +108,13 @@ class BullMQAdapter(QueuePort):
         """
         try:
             # Get job from BullMQ by ID
-            job = await self.queue.getJob(job_id)
+            job = await self.queue.get_job(job_id)
 
             if not job:
                 return None
 
             # Get job state (waiting, active, completed, failed, delayed)
-            state = await job.getState()
+            state = await job.get_state()
 
             # Map BullMQ state to our status
             status_map = {
@@ -128,13 +128,19 @@ class BullMQAdapter(QueuePort):
             return {
                 "job_id": job_id,
                 "status": status_map.get(state, state),
-                "retry_count": job.attemptsMade if hasattr(job, "attemptsMade") else 0,
-                "error_message": job.failedReason
-                if hasattr(job, "failedReason")
+                "retry_count": job.attempts_made
+                if hasattr(job, "attempts_made")
+                else 0,
+                "error_message": job.failed_reason
+                if hasattr(job, "failed_reason")
                 else None,
                 "created_at": job.timestamp if hasattr(job, "timestamp") else None,
-                "updated_at": job.processedOn if hasattr(job, "processedOn") else None,
-                "completed_at": job.finishedOn if hasattr(job, "finishedOn") else None,
+                "updated_at": job.processed_on
+                if hasattr(job, "processed_on")
+                else None,
+                "completed_at": job.finished_on
+                if hasattr(job, "finished_on")
+                else None,
                 "metadata": {
                     "progress": job.progress if hasattr(job, "progress") else 0,
                     "returnvalue": job.returnvalue
@@ -162,7 +168,7 @@ class BullMQAdapter(QueuePort):
             metadata: Additional metadata to store
         """
         try:
-            job = await self.queue.getJob(job_id)
+            job = await self.queue.get_job(job_id)
 
             if not job:
                 logger.warning(f"Cannot update job {job_id}: not found")
@@ -170,7 +176,7 @@ class BullMQAdapter(QueuePort):
 
             # Update progress if provided in metadata
             if metadata and "progress" in metadata:
-                await job.updateProgress(metadata["progress"])
+                await job.update_progress(metadata["progress"])
 
             logger.info(f"Job {job_id} metadata updated (status: {status})")
 
@@ -190,13 +196,13 @@ class BullMQAdapter(QueuePort):
             True if cancelled, False if not found or already complete
         """
         try:
-            job = await self.queue.getJob(job_id)
+            job = await self.queue.get_job(job_id)
 
             if not job:
                 logger.warning(f"Cannot cancel job {job_id}: not found")
                 return False
 
-            state = await job.getState()
+            state = await job.get_state()
 
             # Can only cancel if not completed or failed
             if state in ("completed", "failed"):

@@ -26,6 +26,7 @@ from src.domain.job import (
     JobCreated,
     ChunkUploaded,
     JobCancelled,
+    JobStatus,
 )
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
@@ -444,16 +445,36 @@ class CancelJobHandler:
 
         Raises:
             JobNotFoundError: If job doesn't exist
+            ValidationError: If job is in a non-cancellable terminal state (completed/failed)
         """
         # Get job
         job = await self.repository.get_job(command.job_id)
 
-        # Check if job can be cancelled
+        # Make cancellation idempotent - if already cancelled, return success
+        if job.status == JobStatus.CANCELLED:
+            logger.info(
+                f"Job {command.job_id} already cancelled, returning success (idempotent)"
+            )
+            return {
+                "job_id": command.job_id,
+                "status": "cancelled",
+                "reason": job.error_message or "Previously cancelled",
+            }
+
+        # Check if job can be cancelled (not completed or failed)
         if not job.can_cancel():
             raise ValidationError(f"Cannot cancel job in state: {job.status}")
 
-        # Cancel in queue if queued/processing
-        await self.queue.cancel_job(command.job_id)
+        # Try to cancel in queue if queued/processing
+        # Note: This may return False if job is already picked up by worker,
+        # but we still mark it cancelled so worker can detect it
+        queue_cancelled = await self.queue.cancel_job(command.job_id)
+
+        if not queue_cancelled:
+            logger.warning(
+                f"Could not cancel job {command.job_id} in queue "
+                f"(may already be processing). Marking as cancelled for worker to detect."
+            )
 
         # Create and apply cancellation event
         event = JobCancelled.create(
