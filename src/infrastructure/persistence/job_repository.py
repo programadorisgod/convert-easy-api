@@ -26,6 +26,10 @@ from src.domain.job import (
     JobCompleted,
     JobFailed,
     JobCancelled,
+    ImageProcessingConfigured,
+    BackgroundRemoved,
+    ImageCompressed,
+    WatermarkApplied,
 )
 
 
@@ -56,6 +60,11 @@ class JobRepository:
         "JobCompleted": JobCompleted,
         "JobFailed": JobFailed,
         "JobCancelled": JobCancelled,
+        # Image processing events
+        "ImageProcessingConfigured": ImageProcessingConfigured,
+        "BackgroundRemoved": BackgroundRemoved,
+        "ImageCompressed": ImageCompressed,
+        "WatermarkApplied": WatermarkApplied,
     }
 
     def __init__(self, redis_client: Redis):

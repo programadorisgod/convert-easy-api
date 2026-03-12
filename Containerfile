@@ -5,11 +5,19 @@
 # Stage 1: Builder
 FROM python:3.11-slim as builder
 
-# Install system dependencies
+# Install system dependencies for building
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     make \
+    cmake \
+    nasm \
+    pkg-config \
+    git \
+    wget \
+    tar \
+    zlib1g-dev \
+    libpng-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -24,14 +32,33 @@ RUN pip install --no-cache-dir uv
 # Install Python dependencies
 RUN uv pip install --system --no-cache .
 
+# Build and install mozjpeg
+RUN git clone https://github.com/mozilla/mozjpeg.git /tmp/mozjpeg && \
+    cd /tmp/mozjpeg && \
+    mkdir build && cd build && \
+    cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DENABLE_SHARED=FALSE -DCMAKE_INSTALL_PREFIX=/opt/mozjpeg .. && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /tmp/mozjpeg
+
+# Download and install oxipng
+RUN wget -q https://github.com/shssoichiro/oxipng/releases/download/v9.1.2/oxipng-9.1.2-x86_64-unknown-linux-musl.tar.gz && \
+    tar -xzf oxipng-9.1.2-x86_64-unknown-linux-musl.tar.gz && \
+    mv oxipng-9.1.2-x86_64-unknown-linux-musl/oxipng /usr/local/bin/ && \
+    rm -rf oxipng-*
+
 
 # Stage 2: Runtime
 FROM python:3.11-slim
 
-# Install ImageMagick and runtime dependencies
+# Install ImageMagick and image processing tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     libmagickwand-dev \
+    jpegoptim \
+    pngquant \
+    zlib1g \
+    libpng16-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure ImageMagick policy to allow all operations
@@ -48,6 +75,12 @@ WORKDIR /app
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy mozjpeg binaries
+COPY --from=builder /opt/mozjpeg /opt/mozjpeg
+
+# Add mozjpeg to PATH
+ENV PATH="/opt/mozjpeg/bin:${PATH}"
 
 # Copy application code
 COPY --chown=appuser:appuser . .

@@ -56,6 +56,13 @@ class Job:
         self.created_at: datetime = datetime.now(timezone.utc)
         self.updated_at: datetime = datetime.now(timezone.utc)
 
+        # Image processing state (Fase 1)
+        self.pipeline_config: dict | None = None
+        self.background_removed: bool = False
+        self.image_compressed: bool = False
+        self.watermark_applied: bool = False
+        self.compression_reduction_percent: float = 0.0
+
         # Event tracking
         self._events: list[JobEvent] = []
         self._version = 0
@@ -137,6 +144,25 @@ class Job:
         self.status = JobStatus.CANCELLED
         self.error_message = event.reason
 
+    # Image processing event handlers (Fase 1)
+
+    def _apply_job_image_processing_configured(self, event) -> None:
+        """Apply ImageProcessingConfigured event."""
+        self.pipeline_config = event.pipeline_config
+
+    def _apply_job_background_removed(self, event) -> None:
+        """Apply BackgroundRemoved event."""
+        self.background_removed = True
+
+    def _apply_job_image_compressed(self, event) -> None:
+        """Apply ImageCompressed event."""
+        self.image_compressed = True
+        self.compression_reduction_percent = event.reduction_percent
+
+    def _apply_job_watermark_applied(self, event) -> None:
+        """Apply WatermarkApplied event."""
+        self.watermark_applied = True
+
     # Business logic methods
 
     def can_upload_chunks(self) -> bool:
@@ -179,6 +205,12 @@ class Job:
             "total_chunks": self.total_chunks,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+            # Image processing info
+            "pipeline_config": self.pipeline_config,
+            "background_removed": self.background_removed,
+            "image_compressed": self.image_compressed,
+            "watermark_applied": self.watermark_applied,
+            "compression_reduction_percent": self.compression_reduction_percent,
             "version": self._version,
         }
 

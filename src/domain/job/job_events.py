@@ -185,3 +185,130 @@ class JobCancelled(JobEvent):
     ) -> "JobCancelled":
         """Factory method to create event."""
         return cls(job_id=job_id, reason=reason, data={"reason": reason})
+
+
+# Image processing events (Fase 1)
+
+
+class ImageProcessingConfigured(JobEvent):
+    """Event: Image processing pipeline was configured."""
+
+    event_type: str = "job.image_processing_configured"
+    remove_background: bool = False
+    compress_enabled: bool = False
+    watermark_enabled: bool = False
+    pipeline_config: dict
+
+    @classmethod
+    def create(
+        cls,
+        job_id: str,
+        pipeline_config: dict,
+    ) -> "ImageProcessingConfigured":
+        """Factory method to create event."""
+        return cls(
+            job_id=job_id,
+            remove_background=pipeline_config.get("remove_background", False),
+            compress_enabled=pipeline_config.get("compress_enabled", False),
+            watermark_enabled=pipeline_config.get("watermark_enabled", False),
+            pipeline_config=pipeline_config,
+            data={"pipeline_config": pipeline_config},
+        )
+
+
+class BackgroundRemoved(JobEvent):
+    """Event: Background was removed from image."""
+
+    event_type: str = "job.background_removed"
+    model_used: str
+    processing_time_seconds: float
+    output_size_bytes: int
+
+    @classmethod
+    def create(
+        cls,
+        job_id: str,
+        model_used: str,
+        processing_time_seconds: float,
+        output_size_bytes: int,
+    ) -> "BackgroundRemoved":
+        """Factory method to create event."""
+        return cls(
+            job_id=job_id,
+            model_used=model_used,
+            processing_time_seconds=processing_time_seconds,
+            output_size_bytes=output_size_bytes,
+            data={
+                "model_used": model_used,
+                "processing_time_seconds": processing_time_seconds,
+                "output_size_bytes": output_size_bytes,
+            },
+        )
+
+
+class ImageCompressed(JobEvent):
+    """Event: Image was compressed."""
+
+    event_type: str = "job.image_compressed"
+    compression_level: str
+    original_size_bytes: int
+    compressed_size_bytes: int
+    reduction_percent: float
+    tool_used: str
+
+    @classmethod
+    def create(
+        cls,
+        job_id: str,
+        compression_level: str,
+        original_size_bytes: int,
+        compressed_size_bytes: int,
+        reduction_percent: float,
+        tool_used: str,
+    ) -> "ImageCompressed":
+        """Factory method to create event."""
+        return cls(
+            job_id=job_id,
+            compression_level=compression_level,
+            original_size_bytes=original_size_bytes,
+            compressed_size_bytes=compressed_size_bytes,
+            reduction_percent=reduction_percent,
+            tool_used=tool_used,
+            data={
+                "compression_level": compression_level,
+                "original_size_bytes": original_size_bytes,
+                "compressed_size_bytes": compressed_size_bytes,
+                "reduction_percent": reduction_percent,
+                "tool_used": tool_used,
+            },
+        )
+
+
+class WatermarkApplied(JobEvent):
+    """Event: Watermark was applied to image."""
+
+    event_type: str = "job.watermark_applied"
+    watermark_type: str  # "text" or "logo"
+    watermark_position: str
+    watermark_params: dict
+
+    @classmethod
+    def create(
+        cls,
+        job_id: str,
+        watermark_type: str,
+        watermark_position: str,
+        watermark_params: dict,
+    ) -> "WatermarkApplied":
+        """Factory method to create event."""
+        return cls(
+            job_id=job_id,
+            watermark_type=watermark_type,
+            watermark_position=watermark_position,
+            watermark_params=watermark_params,
+            data={
+                "watermark_type": watermark_type,
+                "watermark_position": watermark_position,
+                "watermark_params": watermark_params,
+            },
+        )

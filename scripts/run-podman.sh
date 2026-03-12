@@ -65,6 +65,9 @@ echo "✅ Redis is healthy"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+TEMP_DIR="/tmp/easy-convert"
+
+mkdir -p "$TEMP_DIR"
 
 cd "$PROJECT_ROOT"
 # Start API

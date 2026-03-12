@@ -22,6 +22,7 @@ from src.interfaces.http.controllers import (
     upload_controller,
     job_controller,
     websocket_controller,
+    image_processing_controller,
 )
 
 from .lifespan import lifespan
@@ -87,6 +88,7 @@ register_exception_handlers(app)
 app.include_router(upload_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(job_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
 
 logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
 

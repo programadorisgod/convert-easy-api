@@ -112,3 +112,55 @@ class DownloadResultCommand:
 
     job_id: str
     output_format: str
+
+
+# Image processing commands (Fase 1)
+
+
+@dataclass(frozen=True)
+class ProcessImageCommand:
+    """Command to process image with advanced operations.
+
+    This command configures the image processing pipeline including:
+    - Background removal (optional)
+    - Compression (optional)
+    - Watermarking (optional)
+    - Format conversion (always)
+
+    Attributes:
+        job_id: Job identifier
+        output_format: Target image format
+        remove_background: Enable background removal
+        background_model: Model for background removal (u2net, etc.)
+        alpha_matting: Enable alpha matting for better edges
+        compress_enabled: Enable compression
+        compression_level: Compression level (low, balanced, strong)
+        compression_quality: Optional quality override (0-100)
+        watermark_enabled: Enable watermark
+        watermark_type: Watermark type (text, logo)
+        watermark_params: Watermark parameters dict
+        output_quality: Optional output quality (0-100)
+        strip_metadata: Strip EXIF metadata for privacy
+    """
+
+    job_id: str
+    output_format: str
+
+    # Background removal
+    remove_background: bool = False
+    background_model: str = "u2net"
+    alpha_matting: bool = False
+
+    # Compression
+    compress_enabled: bool = False
+    compression_level: str = "balanced"  # low, balanced, strong
+    compression_quality: int | None = None
+
+    # Watermark
+    watermark_enabled: bool = False
+    watermark_type: str | None = None  # text, logo
+    watermark_params: dict[str, Any] | None = None
+
+    # Output
+    output_quality: int | None = None
+    strip_metadata: bool = True

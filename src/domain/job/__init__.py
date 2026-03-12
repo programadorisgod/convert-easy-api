@@ -10,6 +10,11 @@ from .job_events import (
     JobCompleted,
     JobFailed,
     JobCancelled,
+    # Image processing events
+    ImageProcessingConfigured,
+    BackgroundRemoved,
+    ImageCompressed,
+    WatermarkApplied,
 )
 
 __all__ = [
@@ -22,4 +27,9 @@ __all__ = [
     "JobCompleted",
     "JobFailed",
     "JobCancelled",
+    # Image processing events
+    "ImageProcessingConfigured",
+    "BackgroundRemoved",
+    "ImageCompressed",
+    "WatermarkApplied",
 ]

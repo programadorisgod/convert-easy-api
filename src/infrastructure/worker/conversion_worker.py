@@ -16,10 +16,23 @@ from bullmq import Worker, Job as BullMQJob
 from shared.config import get_settings
 from shared.events import get_event_bus
 from shared.exceptions import ProcessingError
-from src.domain.job import JobStarted, JobCompleted, JobFailed
+from src.domain.job import (
+    JobStarted,
+    JobCompleted,
+    JobFailed,
+    BackgroundRemoved,
+    ImageCompressed,
+    WatermarkApplied,
+)
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
+from src.infrastructure.converters.image_pipeline import (
+    get_image_pipeline,
+    PipelineConfig,
+    CompressionLevel,
+    WatermarkPosition,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +68,7 @@ class ConversionWorker:
         self.repository = repository
         self.storage = storage
         self.converter = get_image_converter()
+        self.pipeline = get_image_pipeline()
         self.settings = get_settings()
         self.event_bus = get_event_bus()
 
@@ -165,10 +179,21 @@ class ConversionWorker:
             # Get input file path
             input_path = await self.storage.get_file(file_id)
 
-            # Perform conversion
-            output_path = await self._convert_image(
-                input_path, file_id, input_format, output_format, bullmq_job
-            )
+            # Check if this is an advanced pipeline job or simple conversion
+            pipeline_config_data = job_data.get("pipeline_config")
+
+            if pipeline_config_data:
+                # Advanced pipeline processing
+                logger.info("Using advanced image processing pipeline")
+                output_path = await self._process_with_pipeline(
+                    input_path, file_id, output_format, pipeline_config_data, job_id
+                )
+            else:
+                # Simple format conversion
+                logger.info("Using simple format conversion")
+                output_path = await self._convert_image(
+                    input_path, file_id, input_format, output_format, bullmq_job
+                )
 
             result = {
                 "format": output_format,
@@ -276,6 +301,177 @@ class ConversionWorker:
         except Exception as e:
             logger.error(f"Conversion failed: {e}", exc_info=True)
             raise ProcessingError(f"Image conversion failed: {e}")
+
+    async def _process_with_pipeline(
+        self,
+        input_path: Path,
+        file_id: str,
+        output_format: str,
+        pipeline_config_data: dict,
+        job_id: str,
+    ) -> Path:
+        """Process image using full pipeline with advanced operations.
+
+        Args:
+            input_path: Path to input file
+            file_id: File identifier
+            output_format: Output format
+            pipeline_config_data: Pipeline configuration dict
+            job_id: Job identifier for event publishing
+
+        Returns:
+            Path to processed output file
+
+        Raises:
+            ProcessingError: If pipeline processing fails
+        """
+        start_time = datetime.now(timezone.utc)
+
+        try:
+            # Build output path
+            output_path = self.storage._get_output_path(file_id)
+
+            # Convert pipeline config data to PipelineConfig
+            config = self._build_pipeline_config(pipeline_config_data, output_format)
+
+            # Execute pipeline
+            logger.info(f"Executing pipeline with config: {config}")
+            result_path = await self.pipeline.process(
+                input_path=input_path,
+                output_path=output_path,
+                config=config,
+            )
+
+            # Publish events for operations that were performed
+            await self._publish_pipeline_events(job_id, config, start_time)
+
+            return result_path
+
+        except Exception as e:
+            logger.error(f"Pipeline processing failed: {e}", exc_info=True)
+            raise ProcessingError(f"Image pipeline processing failed: {e}")
+
+    def _build_pipeline_config(
+        self,
+        config_data: dict,
+        output_format: str,
+    ) -> PipelineConfig:
+        """Build PipelineConfig from dict.
+
+        Args:
+            config_data: Configuration dictionary
+            output_format: Output format
+
+        Returns:
+            PipelineConfig instance
+        """
+        # Map compression level string to enum
+        compression_level_map = {
+            "low": CompressionLevel.LOW,
+            "balanced": CompressionLevel.BALANCED,
+            "strong": CompressionLevel.STRONG,
+        }
+        compression_level = compression_level_map.get(
+            config_data.get("compression_level", "balanced"),
+            CompressionLevel.BALANCED,
+        )
+
+        # Map watermark position string to enum
+        watermark_position_map = {
+            "top-left": WatermarkPosition.TOP_LEFT,
+            "top-right": WatermarkPosition.TOP_RIGHT,
+            "center": WatermarkPosition.CENTER,
+            "bottom-left": WatermarkPosition.BOTTOM_LEFT,
+            "bottom-right": WatermarkPosition.BOTTOM_RIGHT,
+            "diagonal": WatermarkPosition.DIAGONAL,
+        }
+        watermark_params = config_data.get("watermark_params", {})
+        watermark_position = watermark_position_map.get(
+            watermark_params.get("position", "bottom-right"),
+            WatermarkPosition.BOTTOM_RIGHT,
+        )
+
+        return PipelineConfig(
+            # Background removal
+            remove_background=config_data.get("remove_background", False),
+            background_model=config_data.get("background_model", "u2net"),
+            alpha_matting=config_data.get("alpha_matting", False),
+            # Compression
+            compress_enabled=config_data.get("compress_enabled", False),
+            compression_level=compression_level,
+            compression_quality=config_data.get("compression_quality"),
+            # Watermark
+            watermark_enabled=config_data.get("watermark_enabled", False),
+            watermark_type=config_data.get("watermark_type"),
+            watermark_text=watermark_params.get("text"),
+            watermark_logo_path=Path(watermark_params["logo_path"])
+            if watermark_params.get("logo_path")
+            else None,
+            watermark_position=watermark_position,
+            watermark_opacity=watermark_params.get("opacity", 0.7),
+            watermark_font_size=watermark_params.get("font_size", 40),
+            watermark_color=watermark_params.get("color", "white"),
+            watermark_margin=watermark_params.get("margin", 20),
+            watermark_size_percent=watermark_params.get("size_percent", 15),
+            # Output
+            output_format=output_format,
+            output_quality=config_data.get("output_quality"),
+            strip_metadata=config_data.get("strip_metadata", True),
+            preserve_transparency=True,
+        )
+
+    async def _publish_pipeline_events(
+        self,
+        job_id: str,
+        config: PipelineConfig,
+        start_time: datetime,
+    ) -> None:
+        """Publish events for pipeline operations that were performed.
+
+        Args:
+            job_id: Job identifier
+            config: Pipeline configuration
+            start_time: Processing start time
+        """
+        processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+        # Publish background removal event
+        if config.remove_background:
+            event = BackgroundRemoved.create(
+                job_id=job_id,
+                model_used=config.background_model,
+                processing_time_seconds=processing_time,
+                output_size_bytes=0,  # Would need to track intermediate sizes
+            )
+            await self.repository.save_events(job_id, [event])
+            await self.event_bus.publish(event)
+
+        # Publish compression event
+        if config.compress_enabled:
+            event = ImageCompressed.create(
+                job_id=job_id,
+                compression_level=config.compression_level.value,
+                original_size_bytes=0,  # Would need to track
+                compressed_size_bytes=0,  # Would need to track
+                reduction_percent=0.0,  # Would need to calculate
+                tool_used="auto",
+            )
+            await self.repository.save_events(job_id, [event])
+            await self.event_bus.publish(event)
+
+        # Publish watermark event
+        if config.watermark_enabled:
+            event = WatermarkApplied.create(
+                job_id=job_id,
+                watermark_type=config.watermark_type or "unknown",
+                watermark_position=config.watermark_position.value,
+                watermark_params={
+                    "text": config.watermark_text,
+                    "opacity": config.watermark_opacity,
+                },
+            )
+            await self.repository.save_events(job_id, [event])
+            await self.event_bus.publish(event)
 
 
 async def start_worker(

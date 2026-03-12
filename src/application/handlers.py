@@ -21,12 +21,14 @@ from src.application.commands import (
     StartConversionCommand,
     CancelJobCommand,
     GetJobStatusCommand,
+    ProcessImageCommand,
 )
 from src.domain.job import (
     JobCreated,
     ChunkUploaded,
     JobCancelled,
     JobStatus,
+    ImageProcessingConfigured,
 )
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
@@ -525,3 +527,102 @@ class GetJobStatusHandler:
         job = await self.repository.get_job(command.job_id)
 
         return job.to_dict()
+
+
+class ProcessImageHandler:
+    """Handler for advanced image processing operations.
+
+    Configures and enqueues jobs for the full image processing pipeline:
+    - Background removal
+    - Compression
+    - Watermarking
+    - Format conversion
+    """
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+    ):
+        """Initialize handler.
+
+        Args:
+            repository: Job repository
+            queue: Queue adapter
+        """
+        self.repository = repository
+        self.queue = queue
+        self.event_bus = get_event_bus()
+
+    async def handle(self, command: ProcessImageCommand) -> dict:
+        """Configure and start image processing pipeline.
+
+        Args:
+            command: ProcessImageCommand
+
+        Returns:
+            Pipeline configuration result
+
+        Raises:
+            JobNotFoundError: If job doesn't exist
+            ValidationError: If job cannot be processed
+        """
+        # Get job
+        job = await self.repository.get_job(command.job_id)
+
+        # Validate job can be processed
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        # Build pipeline configuration
+        pipeline_config = {
+            "output_format": command.output_format,
+            "remove_background": command.remove_background,
+            "background_model": command.background_model,
+            "alpha_matting": command.alpha_matting,
+            "compress_enabled": command.compress_enabled,
+            "compression_level": command.compression_level,
+            "compression_quality": command.compression_quality,
+            "watermark_enabled": command.watermark_enabled,
+            "watermark_type": command.watermark_type,
+            "watermark_params": command.watermark_params or {},
+            "output_quality": command.output_quality,
+            "strip_metadata": command.strip_metadata,
+        }
+
+        # Create and apply configuration event
+        event = ImageProcessingConfigured.create(
+            job_id=command.job_id,
+            pipeline_config=pipeline_config,
+        )
+        job.add_event(event)
+
+        # Persist event
+        await self.repository.save_events(command.job_id, [event])
+
+        # Publish event
+        await self.event_bus.publish(event)
+
+        # Enqueue job with pipeline config
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": command.output_format,
+            "pipeline_config": pipeline_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured image processing pipeline for job {command.job_id}: "
+            f"bg_remove={command.remove_background}, "
+            f"compress={command.compress_enabled}, "
+            f"watermark={command.watermark_enabled}"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "pipeline_config": pipeline_config,
+        }
