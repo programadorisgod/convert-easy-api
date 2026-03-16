@@ -85,5 +85,5 @@ services:
     
     autoDeploy: true
     
-    # Custom start command (uses the CMD from Containerfile)
-    # dockerCommand: python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 1
+    # Explicit start command to avoid dashboard/start-command drift.
+    dockerCommand: python3 -c "import os, uvicorn; uvicorn.run('src.main:app', host='0.0.0.0', port=int(os.getenv('PORT', '10000')), workers=1)"

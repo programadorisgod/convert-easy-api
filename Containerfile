@@ -105,5 +105,5 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# Run FastAPI with uvicorn (bind to Render PORT when provided)
-CMD ["sh", "-c", "python3 -m uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# Run FastAPI with uvicorn (bind to Render PORT in a shell-independent way)
+CMD ["python3", "-c", "import os, uvicorn; uvicorn.run('src.main:app', host='0.0.0.0', port=int(os.getenv('PORT', '10000')), workers=1)"]
