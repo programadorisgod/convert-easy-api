@@ -1,8 +1,8 @@
 # Easy Convert API - Implementation Progress
 
-**Date**: March 11, 2026  
-**Phase**: Phase 1 - Foundation & Infrastructure  
-**Status**: In Progress (Phase 1 steps 1-4 completed)
+**Date**: March 13, 2026  
+**Phase**: Phase 2 - Document Conversion  
+**Status**: Phase 1 ✅ complete · Phase 2 ✅ complete (MIME validation included)
 
 ---
 
@@ -562,5 +562,139 @@ UUID filenames, /tmp storage, streaming downloads.
 
 ---
 
-**Last Updated:** March 11, 2026 12:56 PM  
-**Status:** Phase 1 Complete ✅ | Phase 2 Starting 🚧
+**Last Updated:** March 13, 2026  
+**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅
+
+---
+
+## ✅ Phase 2 - Document Conversion (COMPLETED)
+
+> Full reference: [docs/FASE_2_DOCUMENT_PROCESSING.md](FASE_2_DOCUMENT_PROCESSING.md)
+
+### Resumen
+
+Conversión de documentos de texto y office con selección automática de motor (Pandoc / LibreOffice headless) y validación de tipo MIME en todos los handlers de procesamiento.
+
+---
+
+### ✅ Paso 1: Herramientas en contenedor
+
+**Files Modified:** `Containerfile`, `Dockerfile`
+
+- `libreoffice` – conversión de formatos Office
+- `pandoc` – conversión de markup / texto
+- `texlive` – backend PDF para Pandoc (`xelatex`)
+- `libmagic1` – binario C requerido por `python-magic` en runtime
+
+---
+
+### ✅ Paso 2: Settings – Formatos de Documentos
+
+**File Modified:** `shared/config/settings.py`
+
+- `supported_document_input_formats` – 22 formatos de entrada
+- `supported_document_output_formats` – 17 formatos de salida
+- `is_document_format_supported(format, is_output)` – validación
+- `is_format_supported(format, is_output)` – cross-family (imagen + documento)
+
+---
+
+### ✅ Paso 3: Excepción Backward-Compatible
+
+**File Modified:** `shared/exceptions.py`
+
+- `UnsupportedFormatError.supported_formats` → ahora `list[str] | None = None`
+- Compatible con todos los call sites existentes que no pasan lista
+
+---
+
+### ✅ Paso 4: Command y Handler de Documentos
+
+**Files Modified:** `src/application/commands.py`, `src/application/handlers.py`
+
+**`ProcessDocumentCommand`:**
+```python
+@dataclass(frozen=True)
+class ProcessDocumentCommand:
+    job_id: str
+    output_format: str
+    preferred_engine: str = "auto"  # auto, pandoc, libreoffice
+```
+
+**`ProcessDocumentHandler`:**
+- Valida `preferred_engine`
+- Verifica estado del job
+- Realiza validación MIME (llamada a `MimeValidator`)
+- Encola en BullMQ con `document_config`
+
+**`CreateJobHandler`:** actualizado para aceptar formatos de documento via `is_format_supported()`
+
+---
+
+### ✅ Paso 5: DocumentConverter
+
+**File Created:** `src/infrastructure/converters/document_converter.py`
+
+- Auto-selección de motor según formato (ADR-002: Pandoc prioritario cuando ambos sirven)
+- LibreOffice con `HOME` aislado por job (previene colisiones de perfil en paralelo)
+- Conversión PDF via `--pdf-engine=xelatex`
+- Timeout configurable (default: settings.max_conversion_time_seconds)
+- Normalización de nombre de archivo de salida de LibreOffice
+
+---
+
+### ✅ Paso 6: Validación de Tipo MIME
+
+**File Created:** `src/infrastructure/mime_validator.py`
+
+Servicio singleton que valida el contenido real del archivo contra el formato declarado por el cliente antes de encolar cualquier operación de procesamiento.
+
+**Integración:**
+- `StartConversionHandler` – conversión simple
+- `ProcessImageHandler` – pipeline imágenes (bg removal, compress, watermark)
+- `ProcessDocumentHandler` – conversión documentos
+
+**Comportamiento:**
+- Formatos binarios → validación estricta (JPEG ≠ PNG, PDF ≠ DOCX)
+- Formatos texto (`md`, `rst`, `csv`, `tex`, `txt`) → permisivo (todos son `text/plain`)
+- MIME desconocido → log warning + permitido (evita falsos positivos)
+- Error de `libmagic` → falla abierta (permite continuar)
+
+---
+
+### ✅ Paso 7: Worker – Routing Imagen vs Documento
+
+**File Modified:** `src/infrastructure/worker/conversion_worker.py`
+
+- Detección `is_image_job` al inicio de `_process_job()`
+- Nuevo método `_convert_document()` delegando a `DocumentConverter`
+- `document_config.preferred_engine` propagado desde el job_data
+
+---
+
+### ✅ Paso 8: Endpoint HTTP
+
+**File Created:** `src/interfaces/http/controllers/document_processing_controller.py`
+
+- `POST /api/v1/process/document` → `202 Accepted`
+- Schemas: `ProcessDocumentRequest`, `ProcessDocumentResponse`
+- `FileStorage` inyectado como dependencia para MIME validation
+
+**Files Modified:**
+- `src/interfaces/http/controllers/image_processing_controller.py` – `FileStorage` añadido a las 3 rutas
+- `src/interfaces/http/controllers/document_processing_controller.py` – `FileStorage` añadido
+- `src/interfaces/http/controllers/job_controller.py` – MIME types de descarga para 17 formatos de documento
+- `src/main.py` – router registrado, descripción de API actualizada
+
+---
+
+### ✅ Tests
+
+**Files Created:**
+- `tests/unit/test_document_converter.py` – 4 tests (engine selection)
+- `tests/unit/test_settings_formats.py` – 2 tests (format validation)
+- `tests/unit/test_mime_validator.py` – 16 tests (MIME validation)
+
+```
+22 passed in ~3s
+```

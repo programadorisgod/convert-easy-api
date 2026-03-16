@@ -25,7 +25,8 @@ from src.application.commands import ProcessImageCommand
 from src.application.handlers import ProcessImageHandler
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.queue import BullMQAdapter
-from src.lifespan import get_repository, get_queue
+from src.infrastructure.storage.file_storage import FileStorage
+from src.lifespan import get_repository, get_queue, get_storage
 
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,7 @@ async def remove_background(
     request: RemoveBackgroundRequest,
     repository: JobRepository = Depends(get_repository),
     queue: BullMQAdapter = Depends(get_queue),
+    storage: FileStorage = Depends(get_storage),
 ) -> ProcessResponse:
     """Remove background from image using AI."""
     try:
@@ -169,7 +171,7 @@ async def remove_background(
             strip_metadata=request.strip_metadata,
         )
 
-        handler = ProcessImageHandler(repository, queue)
+        handler = ProcessImageHandler(repository, queue, storage)
         result = await handler.handle(command)
 
         return ProcessResponse(
@@ -227,6 +229,7 @@ async def compress_image(
     request: CompressImageRequest,
     repository: JobRepository = Depends(get_repository),
     queue: BullMQAdapter = Depends(get_queue),
+    storage: FileStorage = Depends(get_storage),
 ) -> ProcessResponse:
     """Compress image with smart quality optimization."""
     try:
@@ -241,7 +244,7 @@ async def compress_image(
             strip_metadata=request.strip_metadata,
         )
 
-        handler = ProcessImageHandler(repository, queue)
+        handler = ProcessImageHandler(repository, queue, storage)
         result = await handler.handle(command)
 
         return ProcessResponse(
@@ -316,6 +319,7 @@ async def add_watermark(
     request: WatermarkImageRequest,
     repository: JobRepository = Depends(get_repository),
     queue: BullMQAdapter = Depends(get_queue),
+    storage: FileStorage = Depends(get_storage),
 ) -> ProcessResponse:
     """Add watermark (text or logo) to image."""
     try:
@@ -347,7 +351,7 @@ async def add_watermark(
             strip_metadata=request.strip_metadata,
         )
 
-        handler = ProcessImageHandler(repository, queue)
+        handler = ProcessImageHandler(repository, queue, storage)
         result = await handler.handle(command)
 
         return ProcessResponse(

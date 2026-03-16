@@ -51,12 +51,17 @@ RUN wget -q https://github.com/shssoichiro/oxipng/releases/download/v9.1.2/oxipn
 # Stage 2: Runtime
 FROM python:3.11-slim
 
-# Install ImageMagick and image processing tools
+# Install image and document processing tools (Phase 1 + Phase 2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     libmagickwand-dev \
     jpegoptim \
     pngquant \
+    libreoffice \
+    pandoc \
+    texlive \
+    texlive-xetex \
+    libmagic1 \
     zlib1g \
     libpng16-16 \
     && rm -rf /var/lib/apt/lists/*

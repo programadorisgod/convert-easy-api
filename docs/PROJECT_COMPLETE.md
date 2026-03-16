@@ -273,6 +273,7 @@ open htmlcov/index.html
 - **Max file size**: 100MB (configurable via MAX_FILE_SIZE)
 - **Chunk size**: 10MB (configurable via MAX_CHUNK_SIZE)
 - **Conversion timeout**: 300s (configurable via MAX_CONVERSION_TIME_SECONDS)
+- **Document conversion timeout**: 900s (configurable via MAX_DOCUMENT_CONVERSION_TIME_SECONDS)
 
 ### Scaling Options
 1. **Horizontal scaling**: Multiple worker containers consuming from same Redis queue
@@ -303,6 +304,7 @@ MAX_CHUNK_SIZE=10485760  # 10MB
 # Worker
 WORKER_CONCURRENCY=4
 MAX_CONVERSION_TIME_SECONDS=300
+MAX_DOCUMENT_CONVERSION_TIME_SECONDS=900
 
 # Storage
 STORAGE_BASE_PATH=/tmp/easy-convert

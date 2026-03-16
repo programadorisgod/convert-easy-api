@@ -28,7 +28,11 @@ class Settings(BaseSettings):
     # API
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"],
+        default=[
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://convert-easy.localhost:1355",
+        ],
         description="Allowed CORS origins",
     )
 
@@ -37,15 +41,22 @@ class Settings(BaseSettings):
     def parse_cors_origins(cls, v: Any) -> list[str]:
         """Parse CORS origins from JSON string if needed."""
 
+        def normalize(origins: list[str]) -> list[str]:
+            # CORS origins must not include trailing slash.
+            return [origin.strip().rstrip("/") for origin in origins]
+
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    return parsed
-            except json.JSONDecodeError as e:
+                    return normalize(parsed)
+            except json.JSONDecodeError:
                 # If it's a comma-separated string, split it
                 result = [origin.strip() for origin in v.split(",")]
-                return result
+                return normalize(result)
+
+        if isinstance(v, list):
+            return normalize(v)
 
         return v
 
@@ -72,6 +83,10 @@ class Settings(BaseSettings):
     )
     max_conversion_time_seconds: int = Field(
         default=300, description="Maximum time for a single conversion (5 minutes)"
+    )
+    max_document_conversion_time_seconds: int = Field(
+        default=900,
+        description="Maximum time for a single document conversion (15 minutes)",
     )
 
     # Rate Limiting
@@ -114,6 +129,57 @@ class Settings(BaseSettings):
         default=85, ge=1, le=100, description="Default image quality for lossy formats"
     )
 
+    # Document Conversion (Phase 2)
+    supported_document_input_formats: list[str] = Field(
+        default=[
+            "pdf",
+            "doc",
+            "docx",
+            "odt",
+            "rtf",
+            "txt",
+            "md",
+            "markdown",
+            "html",
+            "htm",
+            "latex",
+            "tex",
+            "rst",
+            "epub",
+            "xls",
+            "xlsx",
+            "ods",
+            "csv",
+            "tsv",
+            "ppt",
+            "pptx",
+            "odp",
+        ],
+        description="Supported input document formats",
+    )
+    supported_document_output_formats: list[str] = Field(
+        default=[
+            "pdf",
+            "docx",
+            "odt",
+            "rtf",
+            "txt",
+            "md",
+            "markdown",
+            "html",
+            "latex",
+            "tex",
+            "epub",
+            "xlsx",
+            "ods",
+            "csv",
+            "tsv",
+            "pptx",
+            "odp",
+        ],
+        description="Supported output document formats",
+    )
+
     # Worker
     worker_concurrency: int = Field(
         default=4, description="Number of concurrent jobs the worker can process"
@@ -142,6 +208,24 @@ class Settings(BaseSettings):
             else self.supported_image_input_formats
         )
         return format_lower in formats
+
+    def is_document_format_supported(
+        self, format_name: str, is_output: bool = False
+    ) -> bool:
+        """Check if document format is supported."""
+        format_lower = format_name.lower().lstrip(".")
+        formats = (
+            self.supported_document_output_formats
+            if is_output
+            else self.supported_document_input_formats
+        )
+        return format_lower in formats
+
+    def is_format_supported(self, format_name: str, is_output: bool = False) -> bool:
+        """Check if format is supported in any conversion family."""
+        return self.is_image_format_supported(
+            format_name, is_output=is_output
+        ) or self.is_document_format_supported(format_name, is_output=is_output)
 
 
 @lru_cache

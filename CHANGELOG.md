@@ -1,5 +1,19 @@
 # Changelog - Easy Convert API
 
+## [Phase 2 - PDF Improvements] - 2026-03-16
+
+### Added
+- Integrated `pdf2docx` for robust `pdf -> docx` conversion.
+- Added `pdf -> odt` pipeline via intermediate DOCX (`pdf2docx` + LibreOffice).
+- Kept dedicated `pdf -> txt` extraction path with `pypdf`.
+
+### Changed
+- PDF input now uses dedicated conversion routing in `DocumentConverter` instead of generic engine selection.
+- Improved error messages for PDF conversion paths.
+
+### Dependencies
+- Added `pdf2docx>=0.5.8`.
+
 ## [Phase 1 - v1.0.0] - 2026-03-12 ✅ COMPLETE
 
 ### 🎉 Advanced Image Processing Suite

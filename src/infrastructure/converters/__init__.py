@@ -9,6 +9,7 @@ This module provides services for:
 """
 
 from .background_remover import BackgroundRemover, get_background_remover
+from .document_converter import DocumentConverter, get_document_converter
 from .image_compressor import CompressionLevel, ImageCompressor, get_image_compressor
 from .image_converter import ImageMagickConverter, get_image_converter
 from .image_pipeline import ImageProcessingPipeline, PipelineConfig, get_image_pipeline
@@ -23,6 +24,9 @@ __all__ = [
     # Background removal
     "BackgroundRemover",
     "get_background_remover",
+    # Documents
+    "DocumentConverter",
+    "get_document_converter",
     # Compression
     "CompressionLevel",
     "ImageCompressor",

@@ -1,6 +1,6 @@
 """Conversion worker using BullMQ.
 
-Processes image conversion jobs from the queue using ImageMagick.
+Processes image and document conversion jobs from the queue.
 Handles job lifecycle, error recovery, and progress tracking.
 """
 
@@ -27,6 +27,7 @@ from src.domain.job import (
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
+from src.infrastructure.converters.document_converter import get_document_converter
 from src.infrastructure.converters.image_pipeline import (
     get_image_pipeline,
     PipelineConfig,
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConversionWorker:
-    """Worker for processing image conversion jobs.
+    """Worker for processing conversion jobs.
 
     Uses BullMQ Worker to consume jobs from the queue and process them
     using ImageMagick for image format conversion.
@@ -69,6 +70,7 @@ class ConversionWorker:
         self.storage = storage
         self.converter = get_image_converter()
         self.pipeline = get_image_pipeline()
+        self.document_converter = get_document_converter()
         self.settings = get_settings()
         self.event_bus = get_event_bus()
 
@@ -179,20 +181,36 @@ class ConversionWorker:
             # Get input file path
             input_path = await self.storage.get_file(file_id)
 
-            # Check if this is an advanced pipeline job or simple conversion
-            pipeline_config_data = job_data.get("pipeline_config")
+            is_image_job = self.settings.is_image_format_supported(
+                input_format
+            ) and self.settings.is_image_format_supported(output_format, is_output=True)
 
-            if pipeline_config_data:
-                # Advanced pipeline processing
-                logger.info("Using advanced image processing pipeline")
-                output_path = await self._process_with_pipeline(
-                    input_path, file_id, output_format, pipeline_config_data, job_id
-                )
+            if is_image_job:
+                # Check if this is an advanced pipeline job or simple conversion
+                pipeline_config_data = job_data.get("pipeline_config")
+
+                if pipeline_config_data:
+                    # Advanced pipeline processing
+                    logger.info("Using advanced image processing pipeline")
+                    output_path = await self._process_with_pipeline(
+                        input_path, file_id, output_format, pipeline_config_data, job_id
+                    )
+                else:
+                    # Simple image format conversion
+                    logger.info("Using simple image format conversion")
+                    output_path = await self._convert_image(
+                        input_path, file_id, input_format, output_format, bullmq_job
+                    )
             else:
-                # Simple format conversion
-                logger.info("Using simple format conversion")
-                output_path = await self._convert_image(
-                    input_path, file_id, input_format, output_format, bullmq_job
+                logger.info("Using document conversion flow")
+                document_config = job_data.get("document_config") or {}
+                output_path = await self._convert_document(
+                    input_path=input_path,
+                    file_id=file_id,
+                    input_format=input_format,
+                    output_format=output_format,
+                    job_id=job_id,
+                    preferred_engine=document_config.get("preferred_engine", "auto"),
                 )
 
             result = {
@@ -257,6 +275,8 @@ class ConversionWorker:
             except Exception as save_error:
                 logger.error(f"Failed to save failure event: {save_error}")
 
+            if isinstance(e, ProcessingError):
+                raise
             raise ProcessingError(f"Job processing failed: {e}")
 
     async def _convert_image(
@@ -350,6 +370,32 @@ class ConversionWorker:
         except Exception as e:
             logger.error(f"Pipeline processing failed: {e}", exc_info=True)
             raise ProcessingError(f"Image pipeline processing failed: {e}")
+
+    async def _convert_document(
+        self,
+        input_path: Path,
+        file_id: str,
+        input_format: str,
+        output_format: str,
+        job_id: str,
+        preferred_engine: str = "auto",
+    ) -> Path:
+        """Convert document using Pandoc/LibreOffice selection."""
+        try:
+            output_path = self.storage._get_output_path(file_id)
+            return await self.document_converter.convert(
+                input_path=input_path,
+                output_path=output_path,
+                input_format=input_format,
+                output_format=output_format,
+                job_id=job_id,
+                preferred_engine=preferred_engine,
+            )
+        except Exception as e:
+            logger.error(f"Document conversion failed: {e}", exc_info=True)
+            if isinstance(e, ProcessingError):
+                raise
+            raise ProcessingError(f"Document conversion failed: {e}")
 
     def _build_pipeline_config(
         self,

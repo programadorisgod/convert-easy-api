@@ -164,3 +164,18 @@ class ProcessImageCommand:
     # Output
     output_quality: int | None = None
     strip_metadata: bool = True
+
+
+@dataclass(frozen=True)
+class ProcessDocumentCommand:
+    """Command to process document conversion (Phase 2).
+
+    Attributes:
+        job_id: Job identifier
+        output_format: Target document format
+        preferred_engine: Optional engine override (auto, pandoc, libreoffice)
+    """
+
+    job_id: str
+    output_format: str
+    preferred_engine: str = "auto"

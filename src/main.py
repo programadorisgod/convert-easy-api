@@ -23,6 +23,7 @@ from src.interfaces.http.controllers import (
     job_controller,
     websocket_controller,
     image_processing_controller,
+    document_processing_controller,
 )
 
 from .lifespan import lifespan
@@ -52,16 +53,19 @@ app = FastAPI(
     Features
 
     * Image Conversion - Convert between 200+ image formats using ImageMagick
+    * Document Conversion - Convert office/markup documents using Pandoc + LibreOffice
     * Chunked Uploads - Reliable uploads for large files (>10MB)
     * Real-time Updates - WebSocket notifications for job status
     * Privacy First - No persistent storage, immediate file deletion
     * Event Sourced - Complete audit trail of all operations
 
-    Supported Formats (Phase 1 - Images)
+    Supported Formats
 
     Input: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG
 
     Output: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF
+
+    Documents: PDF, DOCX, ODT, RTF, TXT, MD, HTML, EPUB, XLSX, ODS, CSV, PPTX, ODP
 
     Note: SVG output disabled for security reasons
     """,
@@ -89,6 +93,7 @@ app.include_router(upload_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(job_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 
 logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
 

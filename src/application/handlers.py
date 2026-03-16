@@ -13,6 +13,7 @@ from shared.exceptions import (
     UnsupportedFormatError,
     FileSizeLimitError,
 )
+from src.infrastructure.mime_validator import get_mime_validator
 from src.application.commands import (
     CreateJobCommand,
     UploadChunkCommand,
@@ -22,6 +23,7 @@ from src.application.commands import (
     CancelJobCommand,
     GetJobStatusCommand,
     ProcessImageCommand,
+    ProcessDocumentCommand,
 )
 from src.domain.job import (
     JobCreated,
@@ -75,12 +77,12 @@ class CreateJobHandler:
 
         settings = get_settings()
 
-        if not settings.is_image_format_supported(command.input_format):
+        if not settings.is_format_supported(command.input_format):
             raise UnsupportedFormatError(command.input_format)
 
         # Validate output formats
         for fmt in command.output_formats:
-            if not settings.is_image_format_supported(fmt):
+            if not settings.is_format_supported(fmt, is_output=True):
                 raise UnsupportedFormatError(fmt)
 
         # Validate file size
@@ -398,6 +400,9 @@ class StartConversionHandler:
                 f"If using chunked upload, call /merge endpoint first. Error: {e}"
             )
 
+        # Validate that file content matches the declared input format
+        get_mime_validator().validate(file_path, job.input_format)
+
         # Enqueue job for processing
         queue_job_id = await self.queue.enqueue(
             command.job_id,
@@ -543,15 +548,18 @@ class ProcessImageHandler:
         self,
         repository: JobRepository,
         queue: BullMQAdapter,
+        storage: FileStorage,
     ):
         """Initialize handler.
 
         Args:
             repository: Job repository
             queue: Queue adapter
+            storage: File storage (used for MIME validation)
         """
         self.repository = repository
         self.queue = queue
+        self.storage = storage
         self.event_bus = get_event_bus()
 
     async def handle(self, command: ProcessImageCommand) -> dict:
@@ -573,6 +581,10 @@ class ProcessImageHandler:
         # Validate job can be processed
         if not job.can_start_processing():
             raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        # Validate that file content matches the declared input format
+        file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(file_path, job.input_format)
 
         # Build pipeline configuration
         pipeline_config = {
@@ -625,4 +637,60 @@ class ProcessImageHandler:
             "job_id": command.job_id,
             "status": "queued",
             "pipeline_config": pipeline_config,
+        }
+
+
+class ProcessDocumentHandler:
+    """Handler for document conversion operations (Phase 2)."""
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+        storage: FileStorage,
+    ):
+        self.repository = repository
+        self.queue = queue
+        self.storage = storage
+
+    async def handle(self, command: ProcessDocumentCommand) -> dict:
+        """Validate and enqueue document conversion."""
+        job = await self.repository.get_job(command.job_id)
+
+        if command.preferred_engine not in {"auto", "pandoc", "libreoffice"}:
+            raise ValidationError(
+                "preferred_engine must be one of: auto, pandoc, libreoffice"
+            )
+
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        # Validate that file content matches the declared input format
+        file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(file_path, job.input_format)
+
+        document_config = {
+            "output_format": command.output_format,
+            "preferred_engine": command.preferred_engine,
+        }
+
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": command.output_format,
+            "document_config": document_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured document processing for job {command.job_id}: "
+            f"engine={command.preferred_engine}"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "document_config": document_config,
         }
