@@ -161,8 +161,22 @@ async def download_result(
             "ppt": "application/vnd.ms-powerpoint",
             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "odp": "application/vnd.oasis.opendocument.presentation",
+            "zip": "application/zip",
         }
         media_type = media_type_map.get(output_format, "application/octet-stream")
+
+        # Some operations (e.g., pdf split-range) produce ZIP output even when
+        # the job output_format is still "pdf" in the event-sourced aggregate.
+        download_extension = output_format
+        try:
+            with output_path.open("rb") as output_file:
+                signature = output_file.read(4)
+            if signature.startswith(b"PK"):
+                media_type = "application/zip"
+                download_extension = "zip"
+        except Exception:
+            # If signature detection fails, fallback to output_format mapping.
+            pass
 
         # Stream file for download
         async def file_stream():
@@ -177,7 +191,7 @@ async def download_result(
             file_stream(),
             media_type=media_type,
             headers={
-                "Content-Disposition": f'attachment; filename="converted.{output_format}"',
+                "Content-Disposition": f'attachment; filename="converted.{download_extension}"',
                 "Content-Length": str(output_path.stat().st_size),
             },
         )

@@ -588,6 +588,12 @@ class ProcessImageHandler:
         file_path = await self.storage.get_file(job.file_id)
         get_mime_validator().validate(file_path, job.input_format)
 
+        # Temporarily disabled until GPU-enabled runtime is available.
+        if command.remove_background:
+            raise ValidationError(
+                "Background removal is temporarily disabled while GPU support is unavailable"
+            )
+
         # Build pipeline configuration
         pipeline_config = {
             "output_format": command.output_format,
@@ -703,6 +709,7 @@ class ProcessPdfHandler:
 
     STRUCTURAL_OPERATIONS = {
         "merge",
+        "split_range",
         "extract_pages",
         "delete_pages",
         "rotate_pages",

@@ -1,8 +1,35 @@
 # Easy Convert API - Implementation Progress
 
-**Date**: March 13, 2026  
-**Phase**: Phase 2 - Document Conversion  
-**Status**: Phase 1 ✅ complete · Phase 2 ✅ complete (MIME validation included)
+**Date**: March 16, 2026  
+**Phase**: Phase 2 - Document Conversion + PDF Processing  
+**Status**: Phase 1 ✅ complete · Phase 2 ✅ complete (Document conversion + MIME validation + PDF processor)
+
+---
+
+## Update - 2026-03-16
+
+### ✅ PDF Processor Integration (COMPLETED)
+
+**Implemented capabilities:**
+- Structural PDF operations with `pypdf`:
+  - merge, extract/delete pages, rotate, metadata, encrypt/decrypt
+- Visual PDF editing with `PyMuPDF`:
+  - add text, add image, draw rectangle, add annotation, set mediabox
+
+**Application / Worker integration:**
+- Added `ProcessPdfCommand` and `ProcessPdfHandler`
+- Added `pdf_config` routing in `ConversionWorker`
+- Added dedicated HTTP endpoints under `/api/v1/process/pdf/*`
+
+**Validation completed:**
+- Unit tests for processor behavior
+- Handler-level orchestration tests
+- Worker PDF path-resolution tests
+- FastAPI route registration test
+
+**Stability fixes done same day:**
+- Fixed incorrect `FileSizeLimitError` usage in `CreateJobHandler` (prevented runtime `500`)
+- Expanded production CORS regex for common frontend hosts on `vercel.app` and `onrender.com`
 
 ---
 

@@ -38,6 +38,12 @@ class MergePdfRequest(BaseModel):
     )
 
 
+class SplitRangePdfRequest(BaseModel):
+    job_id: str = Field(..., description="PDF job identifier")
+    start_page: int = Field(..., ge=1, description="Start page (1-based, inclusive)")
+    end_page: int = Field(..., ge=1, description="End page (1-based, inclusive)")
+
+
 class PageNumbersRequest(BaseModel):
     job_id: str = Field(..., description="PDF job identifier")
     page_numbers: list[int] = Field(
@@ -199,6 +205,32 @@ async def merge_pdfs(
     except Exception as e:
         logger.error(f"Unexpected error merging PDFs: {e}", exc_info=True)
         raise
+
+
+@router.post(
+    "/split-range",
+    response_model=PdfProcessResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Split PDF into selected range and remaining pages",
+)
+async def split_range(
+    request: SplitRangePdfRequest,
+    repository: JobRepository = Depends(get_repository),
+    queue: BullMQAdapter = Depends(get_queue),
+    storage: FileStorage = Depends(get_storage),
+) -> PdfProcessResponse:
+    return await _queue_pdf_operation(
+        job_id=request.job_id,
+        operation="split_range",
+        operation_params={
+            "start_page": request.start_page,
+            "end_page": request.end_page,
+        },
+        source_job_ids=None,
+        repository=repository,
+        queue=queue,
+        storage=storage,
+    )
 
 
 @router.post(

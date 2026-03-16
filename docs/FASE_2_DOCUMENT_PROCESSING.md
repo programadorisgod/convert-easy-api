@@ -28,6 +28,45 @@ La **Fase 2** agrega conversión de documentos con selección automática de mot
 - `pdf -> odt` se procesa como pipeline `pdf2docx` -> `docx -> odt` (LibreOffice).
 - Para PDFs escaneados, la calidad depende de OCR previo.
 
+### 5. **Procesador PDF Dedicado (Manipulación y Edición)** 🧩
+Se incorporó una capa específica de procesamiento PDF, separada de la conversión documental clásica, con dos motores:
+
+- **pypdf** para operaciones estructurales:
+  - unir PDFs
+  - extraer páginas
+  - eliminar páginas
+  - rotar páginas
+  - actualizar metadatos
+  - cifrar / descifrar
+
+- **PyMuPDF (fitz)** para edición visual:
+  - insertar texto
+  - insertar imagen
+  - dibujar rectángulos
+  - añadir anotaciones
+  - ajustar mediabox/layout
+
+Endpoints disponibles en:
+
+- `POST /api/v1/process/pdf/merge`
+- `POST /api/v1/process/pdf/extract-pages`
+- `POST /api/v1/process/pdf/delete-pages`
+- `POST /api/v1/process/pdf/rotate`
+- `POST /api/v1/process/pdf/metadata`
+- `POST /api/v1/process/pdf/encrypt`
+- `POST /api/v1/process/pdf/decrypt`
+- `POST /api/v1/process/pdf/add-text`
+- `POST /api/v1/process/pdf/add-image`
+- `POST /api/v1/process/pdf/draw-rectangle`
+- `POST /api/v1/process/pdf/add-annotation`
+- `POST /api/v1/process/pdf/set-mediabox`
+
+Implementación interna:
+
+- `ProcessPdfCommand` y `ProcessPdfHandler` construyen `pdf_config` y lo encolan.
+- `ConversionWorker` enruta jobs con `pdf_config` hacia `PdfProcessor`.
+- Las salidas se descargan con el mismo flujo estándar de jobs (`GET /jobs/{job_id}/download`).
+
 ---
 
 ## 🔀 Selección de Motor

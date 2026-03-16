@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ class PdfProcessor:
 
     STRUCTURAL_OPERATIONS = {
         "merge",
+        "split_range",
         "extract_pages",
         "delete_pages",
         "rotate_pages",
@@ -100,6 +102,10 @@ class PdfProcessor:
 
         reader = PdfReader(str(input_path))
 
+        if operation == "split_range":
+            self._split_range_to_zip(reader, output_path, params)
+            return
+
         if operation == "extract_pages":
             self._extract_pages(reader, output_path, params)
             return
@@ -120,6 +126,53 @@ class PdfProcessor:
             return
 
         raise ValidationError(f"Unsupported PDF operation: {operation}")
+
+    def _split_range_to_zip(
+        self,
+        reader: PdfReader,
+        output_path: Path,
+        params: dict[str, Any],
+    ) -> None:
+        start = int(params.get("start_page", 0))
+        end = int(params.get("end_page", 0))
+
+        if start < 1 or end < 1:
+            raise ValidationError("start_page and end_page must be >= 1")
+        if start > end:
+            raise ValidationError("start_page must be <= end_page")
+
+        total_pages = len(reader.pages)
+        if end > total_pages:
+            raise ValidationError(
+                f"end_page ({end}) cannot exceed total pages ({total_pages})"
+            )
+
+        selected = PdfWriter()
+        remaining = PdfWriter()
+
+        for page_number, page in enumerate(reader.pages, start=1):
+            if start <= page_number <= end:
+                selected.add_page(page)
+            else:
+                remaining.add_page(page)
+
+        parte_path = output_path.parent / "parte.pdf"
+        resto_path = output_path.parent / "resto.pdf"
+
+        with parte_path.open("wb") as f_selected:
+            selected.write(f_selected)
+
+        with resto_path.open("wb") as f_remaining:
+            remaining.write(f_remaining)
+
+        with zipfile.ZipFile(
+            output_path, "w", compression=zipfile.ZIP_DEFLATED
+        ) as zip_file:
+            zip_file.write(parte_path, arcname="parte.pdf")
+            zip_file.write(resto_path, arcname="resto.pdf")
+
+        parte_path.unlink(missing_ok=True)
+        resto_path.unlink(missing_ok=True)
 
     def _merge_pdfs(
         self,

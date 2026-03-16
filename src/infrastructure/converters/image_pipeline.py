@@ -100,19 +100,10 @@ class ImageProcessingPipeline:
         try:
             # Step 1: Remove background (if enabled)
             if config.remove_background:
-                logger.info("📍 Step 1/4: Removing background")
-                if self.background_remover is None:
-                    self.background_remover = get_background_remover(
-                        config.background_model
-                    )
-
-                temp_bg = output_path.parent / f"temp_bg_{output_path.stem}.png"
-                temp_files.append(temp_bg)
-
-                current_file = await self.background_remover.remove_background(
-                    current_file,
-                    temp_bg,
-                    alpha_matting=config.alpha_matting,
+                # Temporary safeguard: background removal is disabled while
+                # GPU-backed runtime is unavailable.
+                raise ProcessingError(
+                    "Background removal is temporarily disabled while GPU support is unavailable"
                 )
             else:
                 logger.info("⏭️  Step 1/4: Background removal skipped")

@@ -1,5 +1,37 @@
 # Changelog - Easy Convert API
 
+## [Phase 2 - PDF Processor Integration] - 2026-03-16
+
+### Added
+- Added a dedicated PDF processing feature with `pypdf` + `PyMuPDF`.
+- Added new PDF processing endpoints under `POST /api/v1/process/pdf/*`:
+  - `merge`
+  - `extract-pages`
+  - `delete-pages`
+  - `rotate`
+  - `metadata`
+  - `encrypt`
+  - `decrypt`
+  - `add-text`
+  - `add-image`
+  - `draw-rectangle`
+  - `add-annotation`
+  - `set-mediabox`
+- Added `ProcessPdfCommand` and `ProcessPdfHandler` to enqueue PDF operations with `pdf_config`.
+- Added worker routing for `pdf_config` in `ConversionWorker`.
+- Added unit/integration-focused tests for:
+  - PDF processor core operations
+  - PDF handler orchestration
+  - worker PDF path resolution
+  - route registration in FastAPI app
+
+### Changed
+- Expanded CORS origin regex to allow common production frontend domains on `vercel.app` and `onrender.com`.
+- Fixed file-size validation error path in `CreateJobHandler` to correctly raise `FileSizeLimitError` instead of causing a server-side `500`.
+
+### Dependencies
+- Added `PyMuPDF>=1.25.0`.
+
 ## [Phase 2 - PDF Improvements] - 2026-03-16
 
 ### Added

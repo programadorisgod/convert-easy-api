@@ -160,26 +160,32 @@ async def remove_background(
 ) -> ProcessResponse:
     """Remove background from image using AI."""
     try:
-        command = ProcessImageCommand(
-            job_id=request.job_id,
-            output_format=request.output_format,
-            remove_background=True,
-            background_model=request.model,
-            alpha_matting=request.alpha_matting,
-            compress_enabled=False,
-            watermark_enabled=False,
-            strip_metadata=request.strip_metadata,
+        # Temporarily disabled: current runtime does not provide GPU support.
+        # Keep endpoint contract but return a clear validation error.
+        raise ValidationError(
+            "Background removal is temporarily disabled while GPU support is unavailable"
         )
 
-        handler = ProcessImageHandler(repository, queue, storage)
-        result = await handler.handle(command)
+        # command = ProcessImageCommand(
+        #     job_id=request.job_id,
+        #     output_format=request.output_format,
+        #     remove_background=True,
+        #     background_model=request.model,
+        #     alpha_matting=request.alpha_matting,
+        #     compress_enabled=False,
+        #     watermark_enabled=False,
+        #     strip_metadata=request.strip_metadata,
+        # )
 
-        return ProcessResponse(
-            job_id=result["job_id"],
-            status=result["status"],
-            message="Background removal queued successfully. Processing will start shortly.",
-            operation="remove_background",
-        )
+        # handler = ProcessImageHandler(repository, queue, storage)
+        # result = await handler.handle(command)
+
+        # return ProcessResponse(
+        #     job_id=result["job_id"],
+        #     status=result["status"],
+        #     message="Background removal queued successfully. Processing will start shortly.",
+        #     operation="remove_background",
+        # )
 
     except (JobNotFoundError, ValidationError) as e:
         logger.warning(f"Background removal failed: {e}")
