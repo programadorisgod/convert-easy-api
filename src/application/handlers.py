@@ -24,6 +24,7 @@ from src.application.commands import (
     GetJobStatusCommand,
     ProcessImageCommand,
     ProcessDocumentCommand,
+    ProcessPdfCommand,
 )
 from src.domain.job import (
     JobCreated,
@@ -88,8 +89,9 @@ class CreateJobHandler:
         # Validate file size
         max_size = settings.max_file_size_mb * 1024 * 1024
         if command.original_size > max_size:
+            size_mb = command.original_size / (1024 * 1024)
             raise FileSizeLimitError(
-                f"File size {command.original_size} bytes exceeds limit of {max_size} bytes"
+                size_mb=size_mb, limit_mb=settings.max_file_size_mb
             )
 
         # Generate IDs
@@ -693,4 +695,125 @@ class ProcessDocumentHandler:
             "job_id": command.job_id,
             "status": "queued",
             "document_config": document_config,
+        }
+
+
+class ProcessPdfHandler:
+    """Handler for PDF manipulation and editing operations."""
+
+    STRUCTURAL_OPERATIONS = {
+        "merge",
+        "extract_pages",
+        "delete_pages",
+        "rotate_pages",
+        "update_metadata",
+        "encrypt",
+        "decrypt",
+    }
+    VISUAL_OPERATIONS = {
+        "add_text",
+        "add_image",
+        "draw_rectangle",
+        "add_annotation",
+        "set_mediabox",
+    }
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+        storage: FileStorage,
+    ):
+        self.repository = repository
+        self.queue = queue
+        self.storage = storage
+
+    async def handle(self, command: ProcessPdfCommand) -> dict:
+        job = await self.repository.get_job(command.job_id)
+        operation = command.operation.lower()
+        operation_params = dict(command.operation_params or {})
+        source_job_ids = list(command.source_job_ids or [])
+
+        if operation not in self.STRUCTURAL_OPERATIONS | self.VISUAL_OPERATIONS:
+            raise ValidationError(f"Unsupported PDF operation: {operation}")
+
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        if job.input_format != "pdf":
+            raise ValidationError("Primary job must be an uploaded PDF")
+
+        if job.output_format != "pdf":
+            raise ValidationError(
+                "Primary job must be created with output format 'pdf' for PDF operations"
+            )
+
+        primary_file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(primary_file_path, "pdf")
+
+        if operation == "merge" and not source_job_ids:
+            raise ValidationError(
+                "merge requires at least one additional source_job_id"
+            )
+
+        source_file_ids: list[str] = []
+        if source_job_ids:
+            for source_job_id in source_job_ids:
+                if source_job_id == command.job_id:
+                    continue
+
+                source_job = await self.repository.get_job(source_job_id)
+                if source_job.input_format != "pdf":
+                    raise ValidationError(
+                        f"Source job {source_job_id} must reference a PDF input"
+                    )
+
+                source_file_path = await self.storage.get_file(source_job.file_id)
+                get_mime_validator().validate(source_file_path, "pdf")
+                source_file_ids.append(source_job.file_id)
+
+        asset_file_ids: dict[str, str] = {}
+        if operation == "add_image":
+            image_job_id = operation_params.get("image_job_id")
+            if not image_job_id:
+                raise ValidationError("image_job_id is required for add_image")
+
+            image_job = await self.repository.get_job(image_job_id)
+            image_file_path = await self.storage.get_file(image_job.file_id)
+
+            from shared.config import get_settings
+
+            settings = get_settings()
+            if not settings.is_image_format_supported(image_job.input_format):
+                raise ValidationError("image_job_id must reference an uploaded image")
+
+            get_mime_validator().validate(image_file_path, image_job.input_format)
+            asset_file_ids["image"] = image_job.file_id
+
+        pdf_config = {
+            "operation": operation,
+            "operation_params": operation_params,
+            "source_job_ids": source_job_ids,
+            "source_file_ids": source_file_ids,
+            "asset_file_ids": asset_file_ids,
+        }
+
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": job.output_format,
+            "pdf_config": pdf_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured PDF processing for job {command.job_id}: operation={operation}"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "pdf_config": pdf_config,
         }

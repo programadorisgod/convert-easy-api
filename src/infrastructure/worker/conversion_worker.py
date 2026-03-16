@@ -28,6 +28,7 @@ from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
 from src.infrastructure.converters.document_converter import get_document_converter
+from src.infrastructure.converters.pdf_processor import get_pdf_processor
 from src.infrastructure.converters.image_pipeline import (
     get_image_pipeline,
     PipelineConfig,
@@ -71,6 +72,7 @@ class ConversionWorker:
         self.converter = get_image_converter()
         self.pipeline = get_image_pipeline()
         self.document_converter = get_document_converter()
+        self.pdf_processor = get_pdf_processor()
         self.settings = get_settings()
         self.event_bus = get_event_bus()
 
@@ -181,11 +183,20 @@ class ConversionWorker:
             # Get input file path
             input_path = await self.storage.get_file(file_id)
 
+            pdf_config = job_data.get("pdf_config") or {}
+
             is_image_job = self.settings.is_image_format_supported(
                 input_format
             ) and self.settings.is_image_format_supported(output_format, is_output=True)
 
-            if is_image_job:
+            if pdf_config:
+                logger.info("Using PDF processing flow")
+                output_path = await self._process_pdf(
+                    input_path=input_path,
+                    file_id=file_id,
+                    pdf_config=pdf_config,
+                )
+            elif is_image_job:
                 # Check if this is an advanced pipeline job or simple conversion
                 pipeline_config_data = job_data.get("pipeline_config")
 
@@ -396,6 +407,40 @@ class ConversionWorker:
             if isinstance(e, ProcessingError):
                 raise
             raise ProcessingError(f"Document conversion failed: {e}")
+
+    async def _process_pdf(
+        self,
+        input_path: Path,
+        file_id: str,
+        pdf_config: dict[str, Any],
+    ) -> Path:
+        """Process a PDF manipulation or editing job."""
+        try:
+            output_path = self.storage._get_output_path(file_id)
+            source_paths = [
+                await self.storage.get_file(source_file_id)
+                for source_file_id in pdf_config.get("source_file_ids", [])
+            ]
+            asset_paths = {
+                asset_name: await self.storage.get_file(asset_file_id)
+                for asset_name, asset_file_id in pdf_config.get(
+                    "asset_file_ids", {}
+                ).items()
+            }
+
+            return await self.pdf_processor.process(
+                input_path=input_path,
+                output_path=output_path,
+                operation=pdf_config["operation"],
+                operation_params=pdf_config.get("operation_params", {}),
+                source_paths=source_paths,
+                asset_paths=asset_paths,
+            )
+        except Exception as e:
+            logger.error(f"PDF processing failed: {e}", exc_info=True)
+            if isinstance(e, ProcessingError):
+                raise
+            raise ProcessingError(f"PDF processing failed: {e}")
 
     def _build_pipeline_config(
         self,

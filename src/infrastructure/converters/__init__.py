@@ -13,6 +13,7 @@ from .document_converter import DocumentConverter, get_document_converter
 from .image_compressor import CompressionLevel, ImageCompressor, get_image_compressor
 from .image_converter import ImageMagickConverter, get_image_converter
 from .image_pipeline import ImageProcessingPipeline, PipelineConfig, get_image_pipeline
+from .pdf_processor import PdfProcessor, get_pdf_processor
 from .watermark_service import (
     WatermarkPosition,
     WatermarkService,
@@ -27,6 +28,8 @@ __all__ = [
     # Documents
     "DocumentConverter",
     "get_document_converter",
+    "PdfProcessor",
+    "get_pdf_processor",
     # Compression
     "CompressionLevel",
     "ImageCompressor",

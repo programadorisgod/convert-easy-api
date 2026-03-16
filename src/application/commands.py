@@ -179,3 +179,20 @@ class ProcessDocumentCommand:
     job_id: str
     output_format: str
     preferred_engine: str = "auto"
+
+
+@dataclass(frozen=True)
+class ProcessPdfCommand:
+    """Command to process PDF operations.
+
+    Attributes:
+        job_id: Primary PDF job identifier
+        operation: PDF operation name
+        operation_params: Operation-specific payload
+        source_job_ids: Additional PDF job IDs for merge-like operations
+    """
+
+    job_id: str
+    operation: str
+    operation_params: dict[str, Any] | None = None
+    source_job_ids: list[str] | None = None
