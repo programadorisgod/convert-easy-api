@@ -93,17 +93,17 @@ COPY --chown=appuser:appuser . .
 # Switch to non-root user
 USER appuser
 
-# Expose API port
+# Expose API port (Render injects PORT at runtime)
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()" || exit 1
+    CMD python3 -c "import os, urllib.request; port=os.getenv('PORT','8000'); urllib.request.urlopen(f'http://localhost:{port}/health').read()" || exit 1
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# Run FastAPI with uvicorn
-CMD ["python3", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Run FastAPI with uvicorn (bind to Render PORT when provided)
+CMD ["sh", "-c", "python3 -m uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
