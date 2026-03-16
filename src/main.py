@@ -24,6 +24,7 @@ from src.interfaces.http.controllers import (
     websocket_controller,
     image_processing_controller,
     document_processing_controller,
+    pdf_processing_controller,
 )
 
 from .lifespan import lifespan
@@ -78,7 +79,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # Permite todos los subdominios de Vercel
+    allow_origin_regex=r"https://.*\.(?:vercel\.app|onrender\.com)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,6 +95,7 @@ app.include_router(job_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
 
 logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
 
