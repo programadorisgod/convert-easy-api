@@ -133,6 +133,6 @@ if __name__ == "__main__":
         "src.main:app",
         host="0.0.0.0",
         port=port,
-        reload=settings.debug,
+        reload=False if os.environ.get("RENDER") else settings.debug,
         log_level=settings.log_level.lower(),
     )
