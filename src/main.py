@@ -15,17 +15,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.config import get_settings
+from src.interfaces.http.controllers import (
+    document_processing_controller,
+    image_processing_controller,
+    job_controller,
+    pdf_processing_controller,
+    upload_controller,
+    websocket_controller,
+)
+from src.interfaces.http.exception_handlers import register_exception_handlers
 from src.interfaces.http.schemas.health import HealthResponse
 from src.interfaces.http.schemas.root import RootResponse
-from src.interfaces.http.exception_handlers import register_exception_handlers
-from src.interfaces.http.controllers import (
-    upload_controller,
-    job_controller,
-    websocket_controller,
-    image_processing_controller,
-    document_processing_controller,
-    pdf_processing_controller,
-)
 
 from .lifespan import lifespan
 
@@ -123,12 +123,16 @@ async def root():
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
+
+    port = int(os.environ.get("PORT", 8000))
 
     uvicorn.run(
         "src.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=settings.debug,
         log_level=settings.log_level.lower(),
     )
