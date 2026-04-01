@@ -8,6 +8,12 @@ Following best practices:
 - OpenAPI documentation
 """
 
+import os
+
+# Must be set BEFORE any ONNX/rembg imports to suppress GPU discovery
+os.environ.setdefault("ONNX_PROVIDERS", "CPUExecutionProvider")
+os.environ.setdefault("ORT_LOGGING_LEVEL", "3")
+
 import logging
 import sys
 

@@ -12,12 +12,15 @@ Following the recommended pipeline from architecture documentation.
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from shared.exceptions import ProcessingError
-from .background_remover import BackgroundRemover, get_background_remover
 from .image_compressor import CompressionLevel, get_image_compressor
 from .image_converter import get_image_converter
 from .watermark_service import WatermarkPosition, get_watermark_service
+
+if TYPE_CHECKING:
+    from .background_remover import BackgroundRemover
 
 
 logger = logging.getLogger(__name__)

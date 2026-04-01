@@ -8,16 +8,19 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator
 
 from fastapi import FastAPI
-from redis.asyncio import Redis
 
 from shared.config import get_settings
-from src.infrastructure.queue import BullMQAdapter
-from src.infrastructure.persistence import JobRepository, initialize_repository
-from src.infrastructure.storage.file_storage import FileStorage, get_file_storage
-from src.infrastructure.worker import ConversionWorker, start_worker
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
+
+    from src.infrastructure.persistence import JobRepository
+    from src.infrastructure.queue import BullMQAdapter
+    from src.infrastructure.storage.file_storage import FileStorage
+    from src.infrastructure.worker import ConversionWorker
 
 
 logger = logging.getLogger(__name__)
@@ -27,11 +30,11 @@ class AppState:
     """Application state container."""
 
     def __init__(self):
-        self.redis: Redis | None = None
-        self.queue: BullMQAdapter | None = None
-        self.repository: JobRepository | None = None
-        self.storage: FileStorage | None = None
-        self.worker: ConversionWorker | None = None
+        self.redis: "Redis | None" = None
+        self.queue: "BullMQAdapter | None" = None
+        self.repository: "JobRepository | None" = None
+        self.storage: "FileStorage | None" = None
+        self.worker: "ConversionWorker | None" = None
         self.ready: bool = False
 
 
@@ -40,6 +43,13 @@ app_state = AppState()
 
 async def _initialize_background() -> None:
     """Initialize heavy dependencies in background after server starts."""
+    from redis.asyncio import Redis
+
+    from src.infrastructure.persistence import initialize_repository
+    from src.infrastructure.queue import BullMQAdapter
+    from src.infrastructure.storage.file_storage import get_file_storage
+    from src.infrastructure.worker import start_worker
+
     settings = get_settings()
     enable_worker = os.getenv("ENABLE_WORKER", "true").lower() == "true"
 
@@ -156,71 +166,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error(f"❌ Shutdown error: {e}", exc_info=True)
 
 
-def get_redis() -> Redis:
-    """Get Redis client dependency.
-
-    Returns:
-        Redis client instance
-
-    Raises:
-        RuntimeError: If Redis is not initialized
-    """
+def get_redis() -> "Redis":
+    """Get Redis client dependency."""
     if app_state.redis is None:
         raise RuntimeError("Redis not initialized")
     return app_state.redis
 
 
-def get_queue() -> BullMQAdapter:
-    """Get queue adapter dependency.
-
-    Returns:
-        Queue adapter instance
-
-    Raises:
-        RuntimeError: If queue is not initialized
-    """
+def get_queue() -> "BullMQAdapter":
+    """Get queue adapter dependency."""
     if app_state.queue is None:
         raise RuntimeError("Queue adapter not initialized")
     return app_state.queue
 
 
-def get_repository() -> JobRepository:
-    """Get job repository dependency.
-
-    Returns:
-        JobRepository instance
-
-    Raises:
-        RuntimeError: If repository is not initialized
-    """
+def get_repository() -> "JobRepository":
+    """Get job repository dependency."""
     if app_state.repository is None:
         raise RuntimeError("JobRepository not initialized")
     return app_state.repository
 
 
-def get_storage() -> FileStorage:
-    """Get file storage dependency.
-
-    Returns:
-        FileStorage instance
-
-    Raises:
-        RuntimeError: If storage is not initialized
-    """
+def get_storage() -> "FileStorage":
+    """Get file storage dependency."""
     if app_state.storage is None:
         raise RuntimeError("FileStorage not initialized")
     return app_state.storage
 
 
-def get_worker() -> ConversionWorker:
-    """Get conversion worker dependency.
-
-    Returns:
-        ConversionWorker instance
-
-    Raises:
-        RuntimeError: If worker is not initialized
-    """
+def get_worker() -> "ConversionWorker":
+    """Get conversion worker dependency."""
     if app_state.worker is None:
         raise RuntimeError("ConversionWorker not initialized")
     return app_state.worker

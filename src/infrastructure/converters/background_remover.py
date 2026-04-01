@@ -8,8 +8,6 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from rembg import new_session, remove
-
 from shared.exceptions import ProcessingError
 
 logger = logging.getLogger(__name__)
@@ -39,6 +37,8 @@ class BackgroundRemover:
     def _get_session(self):
         """Lazy-load ONNX session (critical for memory)."""
         if self._session is None:
+            from rembg import new_session
+
             logger.info(f"🔄 Loading rembg model: {self.model}")
             self._session = new_session(self.model)
             logger.info(f"✅ Model {self.model} loaded")
@@ -116,6 +116,8 @@ class BackgroundRemover:
             session = self._get_session()
 
             # 🚀 Inferencia
+            from rembg import remove
+
             output_data = remove(
                 input_data,
                 session=session,

@@ -2,13 +2,12 @@
 
 This module provides services for:
 - Format conversion (ImageMagick)
-- Background removal (rembg)
+- Background removal (rembg) - lazy loaded
 - Compression (jpegoptim, mozjpeg, oxipng, pngquant)
 - Watermarking (ImageMagick)
 - Pipeline orchestration
 """
 
-from .background_remover import BackgroundRemover, get_background_remover
 from .document_converter import DocumentConverter, get_document_converter
 from .image_compressor import CompressionLevel, ImageCompressor, get_image_compressor
 from .image_converter import ImageMagickConverter, get_image_converter
@@ -22,9 +21,6 @@ from .watermark_service import (
 
 
 __all__ = [
-    # Background removal
-    "BackgroundRemover",
-    "get_background_remover",
     # Documents
     "DocumentConverter",
     "get_document_converter",
