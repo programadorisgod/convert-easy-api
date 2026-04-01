@@ -51,20 +51,28 @@ RUN wget -q https://github.com/shssoichiro/oxipng/releases/download/v9.1.2/oxipn
 # Stage 2: Runtime
 FROM python:3.11-slim
 
-# Install image and document processing tools (Phase 1 + Phase 2)
+# Install image and document processing tools (optimized for Render 512MB)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     libmagickwand-dev \
     jpegoptim \
     pngquant \
-    libreoffice \
+    libreoffice-core \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
     pandoc \
-    texlive \
+    texlive-latex-base \
     texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-latex-extra \
+    lmodern \
     libmagic1 \
     zlib1g \
     libpng16-16 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Configure ImageMagick policy to allow all operations
 RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/g' /etc/ImageMagick-6/policy.xml || true
@@ -103,7 +111,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    ONNX_PROVIDERS=CPUExecutionProvider \
+    PYTHONMALLOC=malloc \
+    MALLOC_ARENA_MAX=2
 
-# Run FastAPI with uvicorn (bind to Render PORT in a shell-independent way)
-CMD ["python3", "-c", "import os, uvicorn; uvicorn.run('src.main:app', host='0.0.0.0', port=int(os.getenv('PORT', '10000')), workers=1)"]
+# Run FastAPI with uvicorn (bind to Render PORT)
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"]
