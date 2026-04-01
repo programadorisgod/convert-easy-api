@@ -103,7 +103,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    ONNX_PROVIDERS=CPUExecutionProvider \
+    PYTHONMALLOC=malloc \
+    MALLOC_ARENA_MAX=2
 
 # Run FastAPI with uvicorn (bind to Render PORT in a shell-independent way)
 CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"]

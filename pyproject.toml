@@ -17,7 +17,7 @@ dependencies = [
     "pypdf>=5.0.0",
     "PyMuPDF>=1.25.0",
     "pdf2docx>=0.5.8",
-    "rembg[gpu]>=2.0.0",
+    "rembg[cpu]>=2.0.0",
     "pillow>=10.0.0",
 ]
 
