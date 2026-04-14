@@ -173,7 +173,7 @@ class HtmlStrategy(XmlConversionStrategy):
             html_content = str(result_tree)
 
             # Update title if provided
-            if opts.title and opts.title in html_content:
+            if opts.title:
                 html_content = html_content.replace("XML Data", opts.title)
 
             return ConversionResult(
