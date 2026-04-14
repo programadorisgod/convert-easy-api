@@ -18,6 +18,7 @@ from .watermark_service import (
     WatermarkService,
     get_watermark_service,
 )
+from .xml_converter import XmlConverter
 
 
 __all__ = [
@@ -41,4 +42,6 @@ __all__ = [
     "ImageProcessingPipeline",
     "PipelineConfig",
     "get_image_pipeline",
+    # XML
+    "XmlConverter",
 ]

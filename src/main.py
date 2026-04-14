@@ -28,6 +28,7 @@ from src.interfaces.http.controllers import (
     pdf_processing_controller,
     upload_controller,
     websocket_controller,
+    xml_conversion_controller,
 )
 from src.interfaces.http.exception_handlers import register_exception_handlers
 from src.interfaces.http.schemas.health import HealthResponse
@@ -102,6 +103,7 @@ app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)
 
 logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
 

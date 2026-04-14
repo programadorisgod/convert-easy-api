@@ -47,6 +47,11 @@ RUN wget -q https://github.com/shssoichiro/oxipng/releases/download/v9.1.2/oxipn
     mv oxipng-9.1.2-x86_64-unknown-linux-musl/oxipng /usr/local/bin/ && \
     rm -rf oxipng-*
 
+# Download and install yq (CLI tool for YAML processing)
+RUN wget -q https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_amd64 -O /usr/local/bin/yq && \
+    chmod +x /usr/local/bin/yq && \
+    rm -f yq_linux_amd64
+
 
 # Stage 2: Runtime
 FROM python:3.11-slim

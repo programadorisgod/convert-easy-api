@@ -1,6 +1,14 @@
 """HTTP controllers."""
 
-from . import pdf_processing_controller
+from . import (
+    document_processing_controller,
+    pdf_processing_controller,
+    xml_conversion_controller,
+)
 
 
-__all__ = ["pdf_processing_controller"]
+__all__ = [
+    "document_processing_controller",
+    "pdf_processing_controller",
+    "xml_conversion_controller",
+]

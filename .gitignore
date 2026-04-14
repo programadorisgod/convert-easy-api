@@ -101,5 +101,7 @@ dmypy.json
 # Container volumes
 volumes/
 
+# Agent Tooling Layer
+.atl/
 
 tests/*

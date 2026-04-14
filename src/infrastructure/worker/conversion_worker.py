@@ -29,6 +29,8 @@ from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
 from src.infrastructure.converters.document_converter import get_document_converter
 from src.infrastructure.converters.pdf_processor import get_pdf_processor
+from src.infrastructure.converters import XmlConverter
+from src.infrastructure.converters.xml.exceptions import XmlConversionError
 from src.infrastructure.converters.image_pipeline import (
     get_image_pipeline,
     PipelineConfig,
@@ -184,6 +186,7 @@ class ConversionWorker:
             input_path = await self.storage.get_file(file_id)
 
             pdf_config = job_data.get("pdf_config") or {}
+            xml_config = job_data.get("xml_config") or {}
 
             is_image_job = self.settings.is_image_format_supported(
                 input_format
@@ -195,6 +198,14 @@ class ConversionWorker:
                     input_path=input_path,
                     file_id=file_id,
                     pdf_config=pdf_config,
+                )
+            elif xml_config:
+                logger.info("Using XML conversion flow")
+                output_path = await self._process_xml(
+                    input_path=input_path,
+                    file_id=file_id,
+                    xml_config=xml_config,
+                    job_id=job_id,
                 )
             elif is_image_job:
                 # Check if this is an advanced pipeline job or simple conversion
@@ -441,6 +452,61 @@ class ConversionWorker:
             if isinstance(e, ProcessingError):
                 raise
             raise ProcessingError(f"PDF processing failed: {e}")
+
+    async def _process_xml(
+        self,
+        input_path: Path,
+        file_id: str,
+        xml_config: dict[str, Any],
+        job_id: str,
+    ) -> Path:
+        """Process XML conversion job.
+
+        Args:
+            input_path: Path to input XML file
+            file_id: File identifier
+            xml_config: XML conversion configuration dict
+                - output_format: Target format (json, yaml, html, xslt)
+                - options: Format-specific options
+            job_id: Job identifier for logging
+
+        Returns:
+            Path to converted output file
+
+        Raises:
+            ProcessingError: If XML conversion fails
+        """
+        try:
+            output_path = self.storage._get_output_path(file_id)
+
+            # Read XML content from input file
+            xml_content = input_path.read_bytes()
+
+            # Get conversion parameters
+            output_format = xml_config.get("output_format", "json")
+            options = xml_config.get("options", {})
+
+            # Validate XML content
+            XmlConverter.validate_xml(xml_content, input_path.name)
+
+            # Convert XML to target format
+            logger.info(f"Converting XML to {output_format}")
+            result = await XmlConverter.convert(xml_content, output_format, options)
+
+            # Write result to output file
+            output_path.write_bytes(result.content)
+
+            logger.info(
+                f"XML conversion completed: {input_path.name} -> {output_path.name}"
+            )
+            return output_path
+
+        except XmlConversionError as e:
+            logger.error(f"XML conversion failed: {e}", exc_info=True)
+            raise ProcessingError(f"XML conversion failed: {e}")
+        except Exception as e:
+            logger.error(f"XML processing failed: {e}", exc_info=True)
+            raise ProcessingError(f"XML processing failed: {e}")
 
     def _build_pipeline_config(
         self,
