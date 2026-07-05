@@ -804,8 +804,17 @@ class ProcessVideoHandler:
         out_fmt = command.output_format.lower().lstrip(".")
         in_fmt = job.input_format.lower().lstrip(".")
 
-        # Output must differ from input (spec requirement)
-        if out_fmt == in_fmt:
+        # Output must differ from input unless processing params are set
+        # (e.g. re-encode mp4→mp4 with CRF, resolution, FPS, trim, or remove_audio)
+        has_processing_params = any([
+            command.crf is not None,
+            command.resolution is not None,
+            command.fps is not None,
+            command.trim_start is not None,
+            command.trim_duration is not None,
+            command.remove_audio,
+        ])
+        if out_fmt == in_fmt and not has_processing_params:
             raise ValidationError("Output format must differ from input format")
 
         # Validate CRF range
@@ -847,8 +856,8 @@ class ProcessVideoHandler:
         file_path = await self.storage.get_file(job.file_id)
         get_mime_validator().validate(file_path, job.input_format)
 
+        # ponytail: output_format excluded — worker passes it explicitly via job_data
         video_config = {
-            "output_format": command.output_format,
             "crf": command.crf,
             "resolution": command.resolution,
             "fps": command.fps,

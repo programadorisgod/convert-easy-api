@@ -203,8 +203,10 @@ class VideoConverter:
             cmd.extend(["-t", str(trim_duration)])
 
         if extract_audio:
-            # Extract audio only — no video stream.
-            cmd.extend(["-vn"])
+            # Explicitly map first audio stream (fails clearly if no audio track).
+            # ponytail: -map over -vn — explicit mapping gives a clear error when
+            # the input video has no audio stream instead of a cryptic empty output.
+            cmd.extend(["-map", "0:a:0"])
             audio_fmt = audio_output_format.lower().lstrip(".") if audio_output_format else ""
             encoder = self.PREFERRED_AUDIO_ENCODERS.get(audio_fmt)
             if encoder:
@@ -269,8 +271,19 @@ class VideoConverter:
         if process.returncode != 0:
             stderr_text = stderr.decode().strip() if stderr else ""
             stdout_text = stdout.decode().strip() if stdout else ""
-            details = stderr_text or stdout_text or "unknown error"
-            raise ProcessingError(f"Video conversion failed: {details}")
+            all_text = (stderr_text or stdout_text or "")
+
+            # ponytail: extract last meaningful error line (skip version banner/config)
+            lines = [l.strip() for l in all_text.split("\n")]
+            error_lines = [l for l in lines if l and not l.startswith(("ffmpeg version", "built with", "configuration:", "--", "libav"))]
+
+            # Translate cryptic FFmpeg errors into user-friendly messages
+            if "matches no streams" in all_text:
+                message = "The input video has no audio track to extract."
+            else:
+                # Last non-banner line(s) contain the actual FFmpeg error
+                message = error_lines[-1] if error_lines else all_text[:300]
+            raise ProcessingError(message)
 
         return (
             stdout.decode().strip() if stdout else "",
