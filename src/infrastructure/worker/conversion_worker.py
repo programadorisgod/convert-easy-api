@@ -29,6 +29,7 @@ from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
 from src.infrastructure.converters.document_converter import get_document_converter
 from src.infrastructure.converters.audio_converter import get_audio_converter
+from src.infrastructure.converters.video_converter import get_video_converter
 from src.infrastructure.converters.pdf_processor import get_pdf_processor
 from src.infrastructure.converters import XmlConverter
 from src.infrastructure.converters.xml.exceptions import XmlConversionError
@@ -76,6 +77,7 @@ class ConversionWorker:
         self.pipeline = get_image_pipeline()
         self.document_converter = get_document_converter()
         self.audio_converter = get_audio_converter()
+        self.video_converter = get_video_converter()
         self.pdf_processor = get_pdf_processor()
         self.settings = get_settings()
         self.event_bus = get_event_bus()
@@ -199,6 +201,17 @@ class ConversionWorker:
                 and self.settings.is_audio_format_supported(output_format, is_output=True)
             )
 
+            is_video_job = (
+                self.settings.is_video_format_supported(input_format)
+                and self.settings.is_video_format_supported(output_format, is_output=True)
+            )
+
+            is_extract_audio_job = job_data.get("video_config", {}).get(
+                "extract_audio", False
+            ) and self.settings.is_audio_format_supported(
+                output_format, is_output=True
+            )
+
             if pdf_config:
                 logger.info("Using PDF processing flow")
                 output_path = await self._process_pdf(
@@ -238,6 +251,15 @@ class ConversionWorker:
                     file_id=file_id,
                     output_format=output_format,
                     **audio_config,
+                )
+            elif is_video_job or is_extract_audio_job:
+                logger.info("Using video conversion flow")
+                video_config = job_data.get("video_config") or {}
+                output_path = await self._convert_video(
+                    input_path=input_path,
+                    file_id=file_id,
+                    output_format=output_format,
+                    **video_config,
                 )
             else:
                 logger.info("Using document conversion flow")
@@ -573,6 +595,65 @@ class ConversionWorker:
             if isinstance(e, ProcessingError):
                 raise
             raise ProcessingError(f"Audio conversion failed: {e}")
+
+    async def _convert_video(
+        self,
+        input_path: Path,
+        file_id: str,
+        output_format: str,
+        crf: int | None = None,
+        resolution: str | None = None,
+        fps: int | None = None,
+        trim_start: str | None = None,
+        trim_duration: int | None = None,
+        extract_audio: bool = False,
+        audio_output_format: str | None = None,
+        audio_bitrate: str | None = None,
+        remove_audio: bool = False,
+    ) -> Path:
+        """Convert video using FFmpeg.
+
+        Args:
+            input_path: Path to input file
+            file_id: File identifier
+            output_format: Target format
+            crf: CRF value for quality
+            resolution: Target resolution
+            fps: Target FPS
+            trim_start: Trim start timestamp
+            trim_duration: Trim duration in seconds
+            extract_audio: Extract audio track
+            audio_output_format: Audio format for extraction
+            audio_bitrate: Bitrate for extracted audio
+            remove_audio: Remove audio track
+
+        Returns:
+            Path to converted output file
+
+        Raises:
+            ProcessingError: If conversion fails
+        """
+        try:
+            output_path = self.storage._get_output_path(file_id)
+            return await self.video_converter.convert(
+                input_path=input_path,
+                output_path=output_path,
+                output_format=output_format,
+                crf=crf,
+                resolution=resolution,
+                fps=fps,
+                trim_start=trim_start,
+                trim_duration=trim_duration,
+                extract_audio=extract_audio,
+                audio_output_format=audio_output_format,
+                audio_bitrate=audio_bitrate,
+                remove_audio=remove_audio,
+            )
+        except Exception as e:
+            logger.error(f"Video conversion failed: {e}", exc_info=True)
+            if isinstance(e, ProcessingError):
+                raise
+            raise ProcessingError(f"Video conversion failed: {e}")
 
     def _build_pipeline_config(
         self,

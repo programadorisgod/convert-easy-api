@@ -27,6 +27,7 @@ from src.interfaces.http.controllers import (
     image_processing_controller,
     job_controller,
     pdf_processing_controller,
+    video_processing_controller,
     upload_controller,
     websocket_controller,
     xml_conversion_controller,
@@ -103,6 +104,7 @@ app.include_router(job_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(audio_processing_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(video_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)

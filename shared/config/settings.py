@@ -213,6 +213,40 @@ class Settings(BaseSettings):
         description="Maximum time for audio conversion (10 minutes)",
     )
 
+    # Video Conversion
+    supported_video_input_formats: list[str] = Field(
+        default=[
+            "mp4",
+            "mkv",
+            "mov",
+            "avi",
+            "webm",
+            "flv",
+            "wmv",
+            "mpeg",
+            "3gp",
+            "m4v",
+        ],
+        description="Supported input video formats",
+    )
+    supported_video_output_formats: list[str] = Field(
+        default=[
+            "mp4",
+            "mkv",
+            "mov",
+            "avi",
+            "webm",
+            "flv",
+            "mpeg",
+            "m4v",
+        ],
+        description="Supported output video formats (WMV/3GP excluded: proprietary/legacy)",
+    )
+    max_video_conversion_time_seconds: int = Field(
+        default=900,
+        description="Maximum time for video conversion (15 minutes)",
+    )
+
     # Worker
     worker_concurrency: int = Field(
         default=4, description="Number of concurrent jobs the worker can process"
@@ -266,12 +300,25 @@ class Settings(BaseSettings):
         )
         return format_lower in formats
 
+    def is_video_format_supported(
+        self, format_name: str, is_output: bool = False
+    ) -> bool:
+        """Check if video format is supported."""
+        format_lower = format_name.lower().lstrip(".")
+        formats = (
+            self.supported_video_output_formats
+            if is_output
+            else self.supported_video_input_formats
+        )
+        return format_lower in formats
+
     def is_format_supported(self, format_name: str, is_output: bool = False) -> bool:
         """Check if format is supported in any conversion family."""
         return (
             self.is_image_format_supported(format_name, is_output=is_output)
             or self.is_document_format_supported(format_name, is_output=is_output)
             or self.is_audio_format_supported(format_name, is_output=is_output)
+            or self.is_video_format_supported(format_name, is_output=is_output)
         )
 
 

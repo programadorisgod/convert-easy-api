@@ -71,6 +71,17 @@ _MIME_TO_FORMAT: dict[str, str] = {
     "audio/x-aiff": "aiff",
     "audio/amr": "amr",
     "audio/x-amr": "amr",
+    # Video
+    "video/mp4": "mp4",
+    "video/x-matroska": "mkv",
+    "video/quicktime": "mov",
+    "video/x-msvideo": "avi",
+    "video/webm": "webm",
+    "video/x-flv": "flv",
+    "video/x-ms-wmv": "wmv",
+    "video/mpeg": "mpeg",
+    "video/3gpp": "3gp",
+    "video/x-m4v": "m4v",
     # Text-based — ambiguous, best-effort only
     "text/plain": "txt",
     "text/csv": "csv",
@@ -87,6 +98,8 @@ _FORMAT_ALIASES: dict[str, str] = {
     "htm": "html",
     "latex": "tex",
     "tif": "tiff",
+    # libmagic detects m4v container as video/mp4 → normalizes to mp4
+    "m4v": "mp4",
 }
 
 

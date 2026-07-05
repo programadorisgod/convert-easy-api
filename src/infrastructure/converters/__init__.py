@@ -9,6 +9,7 @@ This module provides services for:
 """
 
 from .audio_converter import AudioConverter, get_audio_converter
+from .video_converter import VideoConverter, get_video_converter
 from .document_converter import DocumentConverter, get_document_converter
 from .image_compressor import CompressionLevel, ImageCompressor, get_image_compressor
 from .image_converter import ImageMagickConverter, get_image_converter

@@ -207,6 +207,36 @@ class ProcessAudioCommand:
 
 
 @dataclass(frozen=True)
+class ProcessVideoCommand:
+    """Command to process video conversion using FFmpeg.
+
+    Attributes:
+        job_id: Job identifier
+        output_format: Target video format (mp4, mkv, mov, avi, webm, flv, mpeg, m4v)
+        crf: Optional CRF value (0-51, lower=better quality, default 23 for libx264)
+        resolution: Optional resolution (e.g., '1920:1080' or '-1:480 for aspect-safe)
+        fps: Optional FPS value (e.g., 24, 30, 60)
+        trim_start: Optional start timestamp (HH:MM:SS)
+        trim_duration: Optional duration in seconds
+        extract_audio: Extract audio track instead of converting video
+        audio_output_format: Audio format for extraction (mp3, wav, aac, flac, ogg, opus, m4a)
+        remove_audio: Remove audio track from video
+    """
+
+    job_id: str
+    output_format: str
+    crf: int | None = None
+    resolution: str | None = None
+    fps: int | None = None
+    trim_start: str | None = None
+    trim_duration: int | None = None
+    extract_audio: bool = False
+    audio_output_format: str | None = None
+    audio_bitrate: str | None = None
+    remove_audio: bool = False
+
+
+@dataclass(frozen=True)
 class ProcessPdfCommand:
     """Command to process PDF operations.
 

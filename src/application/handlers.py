@@ -5,6 +5,7 @@ to fulfill business use cases. Each handler corresponds to one command.
 """
 
 import logging
+import re
 from uuid import uuid4
 
 from shared.events import get_event_bus
@@ -26,6 +27,7 @@ from src.application.commands import (
     ProcessDocumentCommand,
     ProcessPdfCommand,
     ProcessAudioCommand,
+    ProcessVideoCommand,
 )
 from src.domain.job import (
     JobCreated,
@@ -772,6 +774,111 @@ class ProcessAudioHandler:
             "job_id": command.job_id,
             "status": "queued",
             "audio_config": audio_config,
+        }
+
+
+class ProcessVideoHandler:
+    """Handler for video conversion operations (FFmpeg)."""
+
+    # ponytail: static patterns, no compiled-regex perf benefit at this volume
+    _RESOLUTION_RE = r"^-?\d+:-?\d+$"
+    _BITRATE_RE = r"^\d+[kK]$"
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+        storage: FileStorage,
+    ):
+        self.repository = repository
+        self.queue = queue
+        self.storage = storage
+
+    async def handle(self, command: ProcessVideoCommand) -> dict:
+        """Validate and enqueue video conversion."""
+        job = await self.repository.get_job(command.job_id)
+
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        out_fmt = command.output_format.lower().lstrip(".")
+        in_fmt = job.input_format.lower().lstrip(".")
+
+        # Output must differ from input (spec requirement)
+        if out_fmt == in_fmt:
+            raise ValidationError("Output format must differ from input format")
+
+        # Validate CRF range
+        if command.crf is not None and not (0 <= command.crf <= 51):
+            raise ValidationError("CRF must be between 0 and 51")
+
+        # Validate resolution format
+        if command.resolution is not None:
+            if not re.match(self._RESOLUTION_RE, command.resolution):
+                raise ValidationError(
+                    "Invalid resolution format — use WIDTH:HEIGHT (e.g. '1920:1080')"
+                )
+
+        # Validate FPS
+        if command.fps is not None and command.fps <= 0:
+            raise ValidationError("FPS must be a positive integer")
+
+        # extract_audio and remove_audio are mutually exclusive
+        if command.extract_audio and command.remove_audio:
+            raise ValidationError(
+                "Cannot extract and remove audio simultaneously"
+            )
+
+        # extract_audio is incompatible with video processing params
+        if command.extract_audio and (command.crf is not None or command.resolution or command.fps):
+            raise ValidationError(
+                "extract_audio is incompatible with video processing parameters "
+                "(CRF, resolution, FPS)"
+            )
+
+        # Validate audio bitrate for extraction
+        if command.audio_bitrate is not None:
+            if not re.match(self._BITRATE_RE, command.audio_bitrate):
+                raise ValidationError(
+                    f"Invalid audio bitrate value: {command.audio_bitrate}"
+                )
+
+        # Validate file content matches declared format
+        file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(file_path, job.input_format)
+
+        video_config = {
+            "output_format": command.output_format,
+            "crf": command.crf,
+            "resolution": command.resolution,
+            "fps": command.fps,
+            "trim_start": command.trim_start,
+            "trim_duration": command.trim_duration,
+            "extract_audio": command.extract_audio,
+            "audio_output_format": command.audio_output_format,
+            "audio_bitrate": command.audio_bitrate,
+            "remove_audio": command.remove_audio,
+        }
+
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": command.output_format,
+            "video_config": video_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured video processing for job {command.job_id}: "
+            f"{job.input_format} → {command.output_format}"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "video_config": video_config,
         }
 
 
