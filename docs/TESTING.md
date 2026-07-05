@@ -213,14 +213,18 @@ pytest --collect-only tests/
 # - 27 tests en test_image_services.py
 # - 15 tests en test_pipeline.py
 # - 20 tests en test_api_image_processing.py
-# Total: 62 tests
+# - 34 tests en test_video_converter.py
+# - 15 tests en test_audio_converter.py
+# - 7 tests en test_video_integration.py
+# - 7 tests en test_audio_integration.py
+# Total: 69 tests (sin integration) / ~83 con integration
 ```
 
 ### Ver estructura de los tests:
 
 ```bash
 pytest --collect-only tests/ | grep "test_" | wc -l
-# Debería mostrar: 62
+# Debería mostrar: 69 (83 con integration)
 ```
 
 ---
@@ -263,7 +267,7 @@ Los tests requieren:
 Una vez ejecutados los tests:
 
 1. Revisar coverage report: `htmlcov/index.html`
-2. Verificar que todos los tests pasen (62/62)
+2. Verificar que todos los tests pasen (69+)
 3. Ejecutar lint: `ruff check src/ tests/`
 4. Ejecutar type checking: `mypy src/`
 
@@ -273,10 +277,14 @@ Una vez ejecutados los tests:
 
 | Categoría | Tests | Descripción |
 |-----------|-------|-------------|
-| **Unitarios** | 27 | Servicios aislados |
-| **Integración Pipeline** | 15 | Pipeline completo |
-| **E2E API** | 20 | Endpoint REST |
-| **Total** | **62** | **Cobertura completa** |
+| **Unitarios** | 27 | Servicios aislados (imagen) |
+| **Integración Pipeline** | 15 | Pipeline completo (imagen) |
+| **E2E API** | 20 | Endpoint REST (imagen) |
+| **Video Converter** | 34 | Conversión de video (FFmpeg) |
+| **Audio Converter** | ~15 | Conversión de audio (FFmpeg) |
+| **Video Integration** | 7 | E2E video (FFmpeg requerido) |
+| **Audio Integration** | 7 | E2E audio (FFmpeg requerido) |
+| **Total** | **69+** | **83 con integración** |
 
 **Estado**: ✅ Tests creados y listos para ejecutar en contenedor
 

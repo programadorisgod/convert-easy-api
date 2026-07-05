@@ -381,14 +381,17 @@ STORAGE_RESULT_TTL_HOURS=24
 - [ ] EPUB to PDF
 - [ ] Markdown to PDF
 
-### Phase 3: Video Conversion
-- [ ] MP4 to WebM/GIF
-- [ ] Video compression
-- [ ] Thumbnail extraction
+### Phase 3: Video Conversion ✅
+- [x] MP4 to WebM/GIF (and 9+ more formats)
+- [x] Video compression (CRF, resolution, FPS)
+- [x] Trim, extract audio, remove audio
+- [ ] Thumbnail extraction (pending)
+- [ ] Codec selection (pending — spec done)
 
-### Phase 4: Audio Conversion
-- [ ] MP3 to WAV/FLAC/OGG
-- [ ] Audio normalization
+### Phase 4: Audio Conversion ✅
+- [x] MP3 to WAV/FLAC/OGG (10 input → 7 output formats)
+- [x] Audio normalization (volume)
+- [x] Bitrate, sample rate, channels, trim
 
 ### Phase 5: Advanced Features
 - [ ] Bulk conversion (batch API)
