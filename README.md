@@ -171,7 +171,7 @@ Once running, visit:
 
 ## Project Status
 
-### ✅ Phase 1 Complete: Advanced Image Processing
+### ✅ Phase 1: Advanced Image Processing
 
 - [x] Clean Architecture foundation
 - [x] Domain layer with Event Sourcing (Job aggregate, 10+ event types)
@@ -184,11 +184,18 @@ Once running, visit:
 - [x] **Watermarking** - Text & logo, 6 positions, opacity control
 - [x] **Advanced Cropping** - 4 modes (coordinates, aspect ratio, square, auto)
 - [x] **Image Processing Pipeline** - Orchestrates: bg_removal → crop → convert → compress → watermark
+
+### ✅ Phase 2: Audio + Video Conversion (FFmpeg)
+
+- [x] **Audio Conversion** - 10 input formats → 7 output, bitrate/sample rate/channels/trim/volume normalization
+- [x] **Video Conversion (Fase 1)** - 10 input formats → 8 output, CRF/resolution/FPS/trim/extract audio/remove audio
+- [x] **Video Fase 2 (Spec complete, pending)** - Codec selection, watermark, ffprobe metadata
 - [x] FastAPI app with OpenAPI documentation
 - [x] Redis integration (queue + event store)
 - [x] Lifespan management
-- [x] **Comprehensive Test Suite** - 62 tests (27 unit + 15 integration + 20 E2E)
-- [xBasic Image Conversion
+- [x] **Comprehensive Test Suite** - 69 tests (unit + integration)
+
+### Basic Image Conversion
 
 ```bash
 # 1. Create conversion job
@@ -236,8 +243,59 @@ curl -X POST http://localhost:8000/api/v1/process/image \
 # → Returns: 202 Accepted with pipeline config
 ```
 
+### Audio Conversion (FFmpeg)
+
+```bash
+# Convert audio file
+curl -X POST http://localhost:8000/api/v1/process/audio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "abc123",
+    "output_format": "mp3",
+    "bitrate": "192k",
+    "channels": 2
+  }'
+# → Returns: 202 Accepted with audio_config
+```
+
+### Video Conversion (FFmpeg)
+
+```bash
+# Convert video format with compression
+curl -X POST http://localhost:8000/api/v1/process/video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "abc123",
+    "output_format": "mkv",
+    "crf": 23,
+    "resolution": "1920:1080"
+  }'
+# → Returns: 202 Accepted with video_config
+
+# Extract audio from video
+curl -X POST http://localhost:8000/api/v1/process/video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "abc123",
+    "output_format": "mp3",
+    "extract_audio": true,
+    "audio_output_format": "mp3",
+    "audio_bitrate": "192k"
+  }'
+# → Returns: 202 Accepted with video_config
+
+# Remove audio track from video
+curl -X POST http://localhost:8000/api/v1/process/video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "abc123",
+    "output_format": "mp4",
+    "remove_audio": true
+  }'
+# → Returns: 202 Accepted with video_config
+```
+
 **📖 Complete API Documentation**:
-- [Phase 1 Examples](docs/FASE_1_IMAGE_PROCESSING.md) - All image processing features
 - [Swagger UI](http://localhost:8000/docs) - Interactive API explorer
 - [ReDoc](http://localhost:8000/redoc) - Detailed API reference
 ### Project Structure
@@ -263,23 +321,22 @@ easy_convert_api/
 
 ### Running Tests
 
-**Complete test suite with 62 tests** covering all Phase 1 features.
+**Complete test suite with 69 tests** covering all phases.
 
 ```bash
-# Run all tests (requires container environment)
-./scripts/run-tests.sh
+# Run all tests (unit + integration, requires FFmpeg)
+uv run pytest tests/ -v
 
-# Or with docker-compose
-docker-compose run --rm api pytest tests/ -v
+# Run without integration tests (no FFmpeg needed)
+uv run pytest tests/ --ignore=tests/test_audio_integration.py --ignore=tests/test_video_integration.py -v
 
-# Run specific test categories
-pytest tests/unit/ -v                    # 27 unit tests
-pytest tests/integration/test_pipeline.py -v  # 15 pipeline tests
-pytest tests/integration/test_api_image_processing.py -v  # 20 E2E tests
+# Run specific converter tests
+uv run pytest tests/test_video_converter.py -v  # 34 video unit tests
+uv run pytest tests/test_audio_converter.py -v  # audio unit tests
+uv run pytest tests/test_image_converter.py -v  # image unit tests
 
 # With coverage report
-pytest tests/ --cov=src --cov=shared --cov-report=html
-open htmlcov/index.html
+uv run pytest tests/ --cov=src --cov=shared --cov-report=html
 ```
 
 **📖 Full Testing Guide**: [docs/TESTING.md](docs/TESTING.md)
