@@ -8,21 +8,21 @@
 
 Easy Convert is a file conversion service designed with privacy as the core principle. Files are processed in memory, converted, and immediately deleted. No persistent storage, no content logging, no file analysis. The server doesn't know what's inside your documents.
 
-### Phase 1: Advanced Image Processing ✅ **COMPLETE**
+### What It Does
 
-Full-featured image processing with privacy-first approach: format conversion, background removal, intelligent compression, and watermarking through **individual endpoints**.
+| Category | What | Formats |
+|----------|------|---------|
+| **Images** | Convert, compress, remove BG, watermark, crop | JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG, +200 via ImageMagick |
+| **Audio** | Convert, normalize volume, trim, bitrate/channels | MP3, WAV, FLAC, OGG, M4A, AAC, WMA, OPUS, AC3, AIFF |
+| **Video** | Convert, compress (CRF/resolution/FPS), trim, extract/remove audio | MP4, WebM, AVI, MKV, MOV, GIF, OGG, FLV, TS |
+| **PDF** | Merge, split, extract, delete/rotate pages, encrypt/decrypt, add text/image, draw, annotate | PDF |
+| **Documents** | Convert between formats via Pandoc/LibreOffice | DOCX, PDF, ODT, EPUB, Markdown, HTML, LaTeX, and 30+ more |
+| **XML** | Convert to JSON, YAML, HTML; transform via XSLT | XML |
 
-**Core Features:**
-- ✅ **200+ Format Conversions** - ImageMagick powered (JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG)
-- ✅ **Background Removal** - AI-powered with rembg (U2Net/BRIA models, 100% local) - `POST /process/remove-background`
-- ✅ **Smart Compression** - 3 levels (low/balanced/strong), 30-90% reduction with mozjpeg/oxipng/pngquant - `POST /process/compress`
-- ✅ **Watermarking** - Text & logo support, 6 positions + diagonal, opacity control - `POST /process/watermark`
-- ✅ **Privacy Guaranteed** - Auto EXIF stripping, local processing, no external APIs
-- ✅ **File Upload Flow** - Direct upload <10MB, chunked >10MB (frontend-handled)
+### Docs Per Feature
 
-**Architecture:** Individual endpoints for maximum flexibility - apply only the operations you need.
-
-**📖 Full Documentation**: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)
+- **📷 Images**: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)
+- **📄 Documents/PDF/XML**: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)
 
 ## Architecture
 
@@ -47,11 +47,9 @@ src/
 - **BullMQ** - Distributed job queue system
 - **WebSockets** - Real-time job status notifications
 
-### Image Processing Tools
-- **ImageMagick 7+** - Format conversion, cropping, watermarking
-- **Quick Start with Docker/Podman (Recommended)
+### Quick Start with Docker/Podman (Recommended)
 
-All image processing tools pre-installed:
+All processing tools pre-installed in the container:
 
 ```bash
 # 1. Start services with docker-compose
@@ -146,19 +144,9 @@ uv run python src/infrastructure/worker/conversion_worker.py
 ./scripts/compose.sh up -d
 
 # Or using Docker Compose
-docker-compose up -dode
+docker-compose up -d
 
-```bash
-# Using FastAPI CLI (recommended)
-uv run fastapi dev
-
-# Or using uvicorn directly
-uv run uvicorn src.main:app --reload --port 8000
-```
-
-#### Production Mode
-
-```bash
+# Or using FastAPI CLI directly
 uv run fastapi run
 ```
 
@@ -172,33 +160,38 @@ Once running, visit:
 ## Project Status
 
 ### ✅ Phase 1: Advanced Image Processing
+*Full docs: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)*
 
-- [x] Clean Architecture foundation
-- [x] Domain layer with Event Sourcing (Job aggregate, 10+ event types)
-- [x] Shared layer (exceptions, config, event bus, queue abstractions)
-- [x] Infrastructure layer (Redis persistence, BullMQ queue, file storage, conversion worker)
-- [x] Application layer (6 commands, 6 handlers, process image pipeline)
-- [x] Interface layer (HTTP REST API, image processing endpoint)
-- [x] **Background Removal** - rembg with U2Net model, alpha matting support
-- [x] **Smart Compression** - 3 levels, multi-tool strategy (mozjpeg, oxipng, pngquant, jpegoptim)
-- [x] **Watermarking** - Text & logo, 6 positions, opacity control
+- [x] **200+ Format Conversions** - ImageMagick: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG
+- [x] **Background Removal** - AI-powered with rembg (U2Net, 100% local)
+- [x] **Smart Compression** - 3 levels (low/balanced/strong), mozjpeg/oxipng/pngquant/jpegoptim
+- [x] **Watermarking** - Text & logo, 6 positions + diagonal, opacity control
 - [x] **Advanced Cropping** - 4 modes (coordinates, aspect ratio, square, auto)
-- [x] **Image Processing Pipeline** - Orchestrates: bg_removal → crop → convert → compress → watermark
+- [x] **Privacy Guaranteed** - Auto EXIF stripping, local processing, no external APIs
 
-### ✅ Phase 2: Audio + Video Conversion (FFmpeg)
+### ✅ Phase 2: Document Processing
+*Full docs: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)*
 
-- [x] **Audio Conversion** - 10 input formats → 7 output, bitrate/sample rate/channels/trim/volume normalization
-- [x] **Video Conversion (Fase 1)** - 10 input formats → 8 output, CRF/resolution/FPS/trim/extract audio/remove audio
-- [x] **Video Fase 2 (Spec complete, pending)** - Codec selection, watermark, ffprobe metadata
-- [x] FastAPI app with OpenAPI documentation
-- [x] Redis integration (queue + event store)
-- [x] Lifespan management
-- [x] **Comprehensive Test Suite** - 69 tests (unit + integration)
+- [x] **PDF Manipulation** — Merge, split, extract pages, rotate, metadata, encrypt/decrypt, add text/image, annotations, draw rectangles, adjustable layout
+- [x] **Document Conversion** — Pandoc + LibreOffice engines, auto-selection via MIME validation
+- [x] **XML Conversion** — XML → JSON / YAML / HTML / XSLT transform
+- [x] **Audio Conversion (FFmpeg)** — 10 input → 7 output, bitrate/sample rate/channels/trim/volume
+- [x] **Video Conversion (FFmpeg)** — 10 input → 8 output, CRF/resolution/FPS/trim/extract/remove audio
+- [ ] Video Phase 2 (codec selection, watermark, ffprobe) — spec complete, pending
 
-### Basic Image Conversion
+### Common Infrastructure
+- [x] **File Upload Workflow** — Create job → Upload (<10MB direct, >10MB chunked) → Start conversion
+- [x] **Job Management** — Status check, cancel, download (file deleted after download)
+- [x] **Redis + BullMQ** — Event store, job queue, persistence
+- [x] **69+ Tests** — Unit + Integration across all phases
+- [x] **OpenAPI Docs** — Swagger UI + ReDoc auto-generated
+
+## API Examples
+
+### 1. Upload & Convert Flow (all file types)
 
 ```bash
-# 1. Create conversion job
+# 1. Create job
 curl -X POST http://localhost:8000/api/v1/upload/create \
   -H "Content-Type: application/json" \
   -d '{
@@ -206,98 +199,133 @@ curl -X POST http://localhost:8000/api/v1/upload/create \
     "output_formats": ["webp"],
     "original_size": 1000000
   }'
-# → Returns: {"job_id": "abc123-..."}
+# → {"job_id": "abc123-...", "file_id": "..."}
 
 # 2. Upload file
 curl -X POST http://localhost:8000/api/v1/upload/abc123/file \
   -F "file=@image.jpg"
 
-# 3. Download converted file
+# 3. Start conversion
+curl -X POST http://localhost:8000/api/v1/upload/abc123/start
+
+# 4. Check status
+curl http://localhost:8000/api/v1/jobs/abc123
+
+# 5. Download result (auto-deleted after download)
 curl http://localhost:8000/api/v1/jobs/abc123/download -o output.webp
 ```
 
-### Advanced Image Processing (Phase 1)
+### 2. Image Processing (Phase 1)
 
 ```bash
-# Full pipeline: remove background + crop + compress + watermark
+# Full pipeline: remove BG + crop + compress + watermark
 curl -X POST http://localhost:8000/api/v1/process/image \
   -H "Content-Type: application/json" \
   -d '{
     "job_id": "abc123",
     "output_format": "png",
     "remove_background": true,
-    "background_model": "u2net",
-    "crop": {
-      "mode": "square",
-      "square_size": 1080
-    },
-    "compress": true,
-    "compression_level": "balanced",
-    "watermark": {
-      "type": "text",
-      "text": "© 2026 Brand",
-      "position": "bottom-right",
-      "opacity": 0.7
-    }
+    "crop": {"mode": "square", "square_size": 1080},
+    "compress": true, "compression_level": "balanced",
+    "watermark": {"type": "text", "text": "© 2026 Brand", "position": "bottom-right", "opacity": 0.7}
   }'
-# → Returns: 202 Accepted with pipeline config
+# → 202 Accepted with pipeline config
 ```
 
-### Audio Conversion (FFmpeg)
+### 3. Audio Conversion (FFmpeg)
 
 ```bash
-# Convert audio file
 curl -X POST http://localhost:8000/api/v1/process/audio \
   -H "Content-Type: application/json" \
-  -d '{
-    "job_id": "abc123",
-    "output_format": "mp3",
-    "bitrate": "192k",
-    "channels": 2
-  }'
-# → Returns: 202 Accepted with audio_config
+  -d '{"job_id": "abc123", "output_format": "mp3", "bitrate": "192k", "channels": 2}'
+# → 202 Accepted
 ```
 
-### Video Conversion (FFmpeg)
+### 4. Video Conversion (FFmpeg)
 
 ```bash
-# Convert video format with compression
+# Convert format
 curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
-  -d '{
-    "job_id": "abc123",
-    "output_format": "mkv",
-    "crf": 23,
-    "resolution": "1920:1080"
-  }'
-# → Returns: 202 Accepted with video_config
+  -d '{"job_id": "abc123", "output_format": "mkv", "crf": 23, "resolution": "1920:1080"}'
 
-# Extract audio from video
+# Extract audio
 curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
-  -d '{
-    "job_id": "abc123",
-    "output_format": "mp3",
-    "extract_audio": true,
-    "audio_output_format": "mp3",
-    "audio_bitrate": "192k"
-  }'
-# → Returns: 202 Accepted with video_config
+  -d '{"job_id": "abc123", "output_format": "mp3", "extract_audio": true, "audio_output_format": "mp3", "audio_bitrate": "192k"}'
 
-# Remove audio track from video
+# Remove audio track
 curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
-  -d '{
-    "job_id": "abc123",
-    "output_format": "mp4",
-    "remove_audio": true
-  }'
-# → Returns: 202 Accepted with video_config
+  -d '{"job_id": "abc123", "output_format": "mp4", "remove_audio": true}'
 ```
 
-**📖 Complete API Documentation**:
-- [Swagger UI](http://localhost:8000/docs) - Interactive API explorer
-- [ReDoc](http://localhost:8000/redoc) - Detailed API reference
+### 5. PDF Processing (13 operations)
+
+```bash
+# Merge PDFs
+curl -X POST http://localhost:8000/api/v1/process/pdf/merge \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "source_job_ids": ["pdf2", "pdf3"]}'
+
+# Split pages (range)
+curl -X POST http://localhost:8000/api/v1/process/pdf/split-range \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "start_page": 1, "end_page": 5}'
+
+# Encrypt
+curl -X POST http://localhost:8000/api/v1/process/pdf/encrypt \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "user_password": "secret123", "owner_password": "admin456"}'
+
+# Full list: merge, split-range, extract-pages, delete-pages, rotate, metadata,
+#            encrypt, decrypt, add-text, add-image, draw-rectangle, add-annotation, set-mediabox
+```
+
+### 6. XML Conversion
+
+```bash
+# XML to JSON
+curl -X POST http://localhost:8000/api/v1/convert/xml/json \
+  -F "file=@data.xml" \
+  -F "preserve_attributes=true"
+
+# XML to YAML
+curl -X POST http://localhost:8000/api/v1/convert/xml/yaml \
+  -F "file=@data.xml" \
+  -F "indent=2"
+
+# XML to HTML (with template)
+curl -X POST http://localhost:8000/api/v1/convert/xml/html \
+  -F "file=@data.xml" \
+  -F "template=table" \
+  -F "title=My Data"
+```
+
+### 7. Document Processing (Pandoc/LibreOffice)
+
+```bash
+curl -X POST http://localhost:8000/api/v1/process/document \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "output_format": "pdf", "preferred_engine": "auto"}'
+```
+
+### 8. Job Management
+
+```bash
+# Status
+curl http://localhost:8000/api/v1/jobs/abc123
+
+# Cancel
+curl -X POST http://localhost:8000/api/v1/jobs/abc123/cancel \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "user-requested"}'
+
+# Download (file deleted after download)
+curl http://localhost:8000/api/v1/jobs/abc123/download -o result.pdf
+```
+
+**📖 API Reference**: [Swagger UI](http://localhost:8000/docs) · [ReDoc](http://localhost:8000/redoc)
 ### Project Structure
 
 ```
@@ -352,25 +380,24 @@ The project follows Clean Code principles:
 
 ## API Flow
 
-### Small Files (<10MB)
+### Quick Reference
 
-```
-1. POST /api/v1/convert (file + target_format)
-2. → Returns job_id
-3. Connect to ws://host/api/v1/ws/jobs/{job_id}
-4. Receive: job:started, job:completed
-5. GET /api/v1/jobs/{job_id}/download
-```
-
-### Large Files (>10MB) - Chunked Upload
-
-```
-1. POST /api/v1/upload/chunk (chunk + metadata) × N
-2. POST /api/v1/upload/assemble (file_id + target_format)
-3. → Returns job_id
-4. Connect to WebSocket for status updates
-5. Download converted file
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/upload/create` | POST | Create job (returns `job_id` + `file_id`) |
+| `/upload/{job_id}/file` | POST | Upload complete file (<10MB) |
+| `/upload/{job_id}/chunk` | POST | Upload chunk (>10MB, N times) |
+| `/upload/{job_id}/merge` | POST | Merge chunks after upload |
+| `/upload/{job_id}/start` | POST | Start conversion process |
+| `/jobs/{job_id}` | GET | Get job status |
+| `/jobs/{job_id}/cancel` | POST | Cancel pending/processing job |
+| `/jobs/{job_id}/download` | GET | Download result (auto-deletes) |
+| `/process/image` | POST | Full image pipeline |
+| `/process/audio` | POST | Audio conversion |
+| `/process/video` | POST | Video conversion |
+| `/process/pdf/*` | POST | 13 PDF operations (merge, split, encrypt...) |
+| `/process/document` | POST | Document conversion (auto engine) |
+| `/convert/xml/*` | POST | XML → JSON/YAML/HTML/XSLT |
 
 ## Privacy Guarantees
 
