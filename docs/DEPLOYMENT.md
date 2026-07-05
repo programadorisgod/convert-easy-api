@@ -107,8 +107,8 @@ podman run -d \
 ┌────────────────┐
 │   Client       │
 └───────┬────────┘
-        │ HTTP/WebSocket
-        ▼
+         │ HTTP/WebSocket
+         ▼
 ┌────────────────┐
 │  FastAPI App   │ :8000
 │  - Upload API  │
@@ -123,11 +123,28 @@ podman run -d \
 └────────────────┘     └──────┬───────┘
      :6379                    │
                               ▼
-                      ┌──────────────┐
-                      │ ImageMagick  │
-                      │  Converter   │
-                      └──────────────┘
+                      ┌──────────────────┐
+                      │  Conversion Core  │
+                      │  ├─ ImageMagick   │
+                      │  ├─ FFmpeg        │
+                      │  ├─ Pandoc        │
+                      │  ├─ LibreOffice   │
+                      │  └─ rembg (AI)    │
+                      └──────────────────┘
 ```
+
+### Runtime Dependencies
+
+The container image includes all processing tools — no manual install needed:
+
+| Tool | Purpose | Container |
+|------|---------|-----------|
+| **ImageMagick 7+** | Image format conversion, watermark, crop | ✅ Pre-installed |
+| **FFmpeg** | Audio & video conversion | ✅ Pre-installed |
+| **Pandoc** | Document conversion (markup formats) | ✅ Pre-installed |
+| **LibreOffice** | Document conversion (Office formats) | ✅ Pre-installed |
+| **rembg** | AI background removal | ✅ Pre-installed |
+| **mozjpeg / oxipng** | Smart compression | ✅ Pre-installed |
 
 ## Multi-Architecture Support
 
