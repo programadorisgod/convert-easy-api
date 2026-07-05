@@ -57,6 +57,20 @@ _MIME_TO_FORMAT: dict[str, str] = {
     # HTML is distinct from plain text
     "text/html": "html",
     "application/xhtml+xml": "html",
+    # Audio
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/aac": "aac",
+    "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/flac": "flac",
+    "audio/ogg": "ogg",
+    "audio/opus": "opus",
+    "audio/x-ms-wma": "wma",
+    "audio/x-aiff": "aiff",
+    "audio/amr": "amr",
+    "audio/x-amr": "amr",
     # Text-based — ambiguous, best-effort only
     "text/plain": "txt",
     "text/csv": "csv",

@@ -25,6 +25,7 @@ from src.application.commands import (
     ProcessImageCommand,
     ProcessDocumentCommand,
     ProcessPdfCommand,
+    ProcessAudioCommand,
 )
 from src.domain.job import (
     JobCreated,
@@ -701,6 +702,76 @@ class ProcessDocumentHandler:
             "job_id": command.job_id,
             "status": "queued",
             "document_config": document_config,
+        }
+
+
+class ProcessAudioHandler:
+    """Handler for audio conversion operations (FFmpeg)."""
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+        storage: FileStorage,
+    ):
+        self.repository = repository
+        self.queue = queue
+        self.storage = storage
+
+    async def handle(self, command: ProcessAudioCommand) -> dict:
+        """Validate and enqueue audio conversion."""
+        job = await self.repository.get_job(command.job_id)
+
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        # Validate output differs from input (spec requirement)
+        out_fmt = command.output_format.lower().lstrip(".")
+        in_fmt = job.input_format.lower().lstrip(".")
+        if out_fmt == in_fmt:
+            raise ValidationError("Output format must differ from input format")
+
+        # Validate bitrate format before queuing (spec requirement)
+        if command.bitrate is not None:
+            br = command.bitrate
+            if len(br) < 2 or not br[:-1].isdigit() or br[-1] not in ("k", "M"):
+                raise ValidationError(
+                    f"Invalid bitrate value for output format: {br}"
+                )
+
+        # Validate that file content matches the declared input format
+        file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(file_path, job.input_format)
+
+        audio_config = {
+            "output_format": command.output_format,
+            "bitrate": command.bitrate,
+            "sample_rate": command.sample_rate,
+            "channels": command.channels,
+            "trim_start": command.trim_start,
+            "trim_duration": command.trim_duration,
+            "normalize_volume": command.normalize_volume,
+        }
+
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": command.output_format,
+            "audio_config": audio_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured audio processing for job {command.job_id}: "
+            f"{job.input_format} → {command.output_format}"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "audio_config": audio_config,
         }
 
 

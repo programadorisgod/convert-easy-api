@@ -180,6 +180,39 @@ class Settings(BaseSettings):
         description="Supported output document formats",
     )
 
+    # Audio Conversion
+    supported_audio_input_formats: list[str] = Field(
+        default=[
+            "mp3",
+            "wav",
+            "aac",
+            "m4a",
+            "flac",
+            "ogg",
+            "opus",
+            "wma",
+            "aiff",
+            "amr",
+        ],
+        description="Supported input audio formats",
+    )
+    supported_audio_output_formats: list[str] = Field(
+        default=[
+            "mp3",
+            "wav",
+            "aac",
+            "m4a",
+            "flac",
+            "ogg",
+            "opus",
+        ],
+        description="Supported output audio formats",
+    )
+    max_audio_conversion_time_seconds: int = Field(
+        default=600,
+        description="Maximum time for audio conversion (10 minutes)",
+    )
+
     # Worker
     worker_concurrency: int = Field(
         default=4, description="Number of concurrent jobs the worker can process"
@@ -221,11 +254,25 @@ class Settings(BaseSettings):
         )
         return format_lower in formats
 
+    def is_audio_format_supported(
+        self, format_name: str, is_output: bool = False
+    ) -> bool:
+        """Check if audio format is supported."""
+        format_lower = format_name.lower().lstrip(".")
+        formats = (
+            self.supported_audio_output_formats
+            if is_output
+            else self.supported_audio_input_formats
+        )
+        return format_lower in formats
+
     def is_format_supported(self, format_name: str, is_output: bool = False) -> bool:
         """Check if format is supported in any conversion family."""
-        return self.is_image_format_supported(
-            format_name, is_output=is_output
-        ) or self.is_document_format_supported(format_name, is_output=is_output)
+        return (
+            self.is_image_format_supported(format_name, is_output=is_output)
+            or self.is_document_format_supported(format_name, is_output=is_output)
+            or self.is_audio_format_supported(format_name, is_output=is_output)
+        )
 
 
 @lru_cache

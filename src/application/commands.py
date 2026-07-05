@@ -182,6 +182,31 @@ class ProcessDocumentCommand:
 
 
 @dataclass(frozen=True)
+class ProcessAudioCommand:
+    """Command to process audio conversion using FFmpeg.
+
+    Attributes:
+        job_id: Job identifier
+        output_format: Target audio format (mp3, wav, flac, ogg, opus, aac, m4a)
+        bitrate: Optional audio bitrate (e.g., '128k', '192k', '256k', '320k')
+        sample_rate: Optional sample rate in Hz (e.g., 22050, 44100, 48000)
+        channels: Optional channel count (1 for mono, 2 for stereo)
+        trim_start: Optional start timestamp for trimming (HH:MM:SS)
+        trim_duration: Optional duration in seconds for trimming
+        normalize_volume: Enable dynamic volume normalization
+    """
+
+    job_id: str
+    output_format: str
+    bitrate: str | None = None
+    sample_rate: int | None = None
+    channels: int | None = None
+    trim_start: str | None = None
+    trim_duration: int | None = None
+    normalize_volume: bool = False
+
+
+@dataclass(frozen=True)
 class ProcessPdfCommand:
     """Command to process PDF operations.
 

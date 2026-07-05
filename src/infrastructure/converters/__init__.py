@@ -8,6 +8,7 @@ This module provides services for:
 - Pipeline orchestration
 """
 
+from .audio_converter import AudioConverter, get_audio_converter
 from .document_converter import DocumentConverter, get_document_converter
 from .image_compressor import CompressionLevel, ImageCompressor, get_image_compressor
 from .image_converter import ImageMagickConverter, get_image_converter
@@ -22,6 +23,9 @@ from .xml_converter import XmlConverter
 
 
 __all__ = [
+    # Audio
+    "AudioConverter",
+    "get_audio_converter",
     # Documents
     "DocumentConverter",
     "get_document_converter",

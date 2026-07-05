@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from shared.config import get_settings
 from src.interfaces.http.controllers import (
+    audio_processing_controller,
     document_processing_controller,
     image_processing_controller,
     job_controller,
@@ -101,6 +102,7 @@ app.include_router(upload_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(job_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(image_processing_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(audio_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)

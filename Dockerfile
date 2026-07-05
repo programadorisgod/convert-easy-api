@@ -58,6 +58,7 @@ FROM python:3.11-slim
 
 # Install image and document processing tools (optimized for Render 512MB)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     imagemagick \
     libmagickwand-dev \
     jpegoptim \
@@ -84,8 +85,8 @@ RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy dom
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app /tmp/easy-convert && \
-    chown -R appuser:appuser /app /tmp/easy-convert
+    mkdir -p /app /tmp/easy_convert && \
+    chown -R appuser:appuser /app /tmp/easy_convert
 
 # Set working directory
 WORKDIR /app

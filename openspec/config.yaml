@@ -1,0 +1,63 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Python >=3.11, FastAPI, Pydantic v2, Redis, BullMQ, ImageMagick, Pandoc, LibreOffice
+  Architecture: Hexagonal/Clean (interfaces/http → application → domain → infrastructure)
+  Testing: pytest 8+, pytest-cov, httpx, asyncio_mode=auto; test markers: unit, integration, e2e, slow
+  Style: Ruff (linter+formatter), mypy (type checker); conventional commits
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: true
+    test_command: "uv run pytest -xvs"
+  verify:
+    test_command: "uv run pytest --cov=src --cov=shared --cov-report=term-missing -xvs"
+    build_command: "uv run ruff check . && uv run mypy src/"
+    coverage_threshold: 80
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: true
+  runner:
+    command: "uv run pytest"
+    framework: pytest
+  layers:
+    unit:
+      available: true
+      tool: pytest
+      marker: -m unit
+    integration:
+      available: true
+      tool: pytest + httpx
+      marker: -m integration
+    e2e:
+      available: false
+      tool: null
+      marker: -m e2e
+  coverage:
+    available: true
+    command: "uv run pytest --cov=src --cov=shared"
+  quality:
+    linter:
+      available: true
+      command: "uv run ruff check ."
+    type_checker:
+      available: true
+      command: "uv run mypy src/"
+    formatter:
+      available: true
+      command: "uv run ruff format . --check"

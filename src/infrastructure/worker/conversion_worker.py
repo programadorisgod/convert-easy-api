@@ -28,6 +28,7 @@ from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
 from src.infrastructure.converters.image_converter import get_image_converter
 from src.infrastructure.converters.document_converter import get_document_converter
+from src.infrastructure.converters.audio_converter import get_audio_converter
 from src.infrastructure.converters.pdf_processor import get_pdf_processor
 from src.infrastructure.converters import XmlConverter
 from src.infrastructure.converters.xml.exceptions import XmlConversionError
@@ -74,6 +75,7 @@ class ConversionWorker:
         self.converter = get_image_converter()
         self.pipeline = get_image_pipeline()
         self.document_converter = get_document_converter()
+        self.audio_converter = get_audio_converter()
         self.pdf_processor = get_pdf_processor()
         self.settings = get_settings()
         self.event_bus = get_event_bus()
@@ -192,6 +194,11 @@ class ConversionWorker:
                 input_format
             ) and self.settings.is_image_format_supported(output_format, is_output=True)
 
+            is_audio_job = (
+                self.settings.is_audio_format_supported(input_format)
+                and self.settings.is_audio_format_supported(output_format, is_output=True)
+            )
+
             if pdf_config:
                 logger.info("Using PDF processing flow")
                 output_path = await self._process_pdf(
@@ -223,6 +230,15 @@ class ConversionWorker:
                     output_path = await self._convert_image(
                         input_path, file_id, input_format, output_format, bullmq_job
                     )
+            elif is_audio_job:
+                logger.info("Using audio conversion flow")
+                audio_config = job_data.get("audio_config") or {}
+                output_path = await self._convert_audio(
+                    input_path=input_path,
+                    file_id=file_id,
+                    output_format=output_format,
+                    **audio_config,
+                )
             else:
                 logger.info("Using document conversion flow")
                 document_config = job_data.get("document_config") or {}
@@ -507,6 +523,56 @@ class ConversionWorker:
         except Exception as e:
             logger.error(f"XML processing failed: {e}", exc_info=True)
             raise ProcessingError(f"XML processing failed: {e}")
+
+    async def _convert_audio(
+        self,
+        input_path: Path,
+        file_id: str,
+        output_format: str,
+        bitrate: str | None = None,
+        sample_rate: int | None = None,
+        channels: int | None = None,
+        trim_start: str | None = None,
+        trim_duration: int | None = None,
+        normalize_volume: bool = False,
+    ) -> Path:
+        """Convert audio using FFmpeg.
+
+        Args:
+            input_path: Path to input file
+            file_id: File identifier
+            output_format: Target format
+            bitrate: Audio bitrate
+            sample_rate: Sample rate in Hz
+            channels: Channel count (1=mono, 2=stereo)
+            trim_start: Trim start timestamp
+            trim_duration: Trim duration in seconds
+            normalize_volume: Enable volume normalization
+
+        Returns:
+            Path to converted output file
+
+        Raises:
+            ProcessingError: If conversion fails
+        """
+        try:
+            output_path = self.storage._get_output_path(file_id)
+            return await self.audio_converter.convert(
+                input_path=input_path,
+                output_path=output_path,
+                output_format=output_format,
+                bitrate=bitrate,
+                sample_rate=sample_rate,
+                channels=channels,
+                trim_start=trim_start,
+                trim_duration=trim_duration,
+                normalize_volume=normalize_volume,
+            )
+        except Exception as e:
+            logger.error(f"Audio conversion failed: {e}", exc_info=True)
+            if isinstance(e, ProcessingError):
+                raise
+            raise ProcessingError(f"Audio conversion failed: {e}")
 
     def _build_pipeline_config(
         self,
