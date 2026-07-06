@@ -745,8 +745,8 @@ class ProcessAudioHandler:
         file_path = await self.storage.get_file(job.file_id)
         get_mime_validator().validate(file_path, job.input_format)
 
+        # ponytail: output_format excluded — worker passes it explicitly via job_data
         audio_config = {
-            "output_format": command.output_format,
             "bitrate": command.bitrate,
             "sample_rate": command.sample_rate,
             "channels": command.channels,

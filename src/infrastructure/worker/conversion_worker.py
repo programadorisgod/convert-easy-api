@@ -7,6 +7,7 @@ Handles job lifecycle, error recovery, and progress tracking.
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -313,6 +314,14 @@ class ConversionWorker:
         except Exception as e:
             logger.error(f"❌ Job {job_id} failed: {e}", exc_info=True)
 
+            # Sanitize: don't leak Python internals to the frontend
+            error_msg = str(e)
+            if re.search(r"(src\.|\.py\b|Traceback|File \")", error_msg):
+                logger.debug(f"Sanitized internal error: {error_msg}")
+                user_msg = "An internal processing error occurred."
+            else:
+                user_msg = error_msg
+
             # Mark job as failed (only if not already in terminal state)
             try:
                 job = await self.repository.get_job(job_id)
@@ -326,7 +335,7 @@ class ConversionWorker:
                 else:
                     event = JobFailed.create(
                         job_id=job_id,
-                        error_message=str(e),
+                        error_message=user_msg,
                         error_code=type(e).__name__,
                     )
                     job.apply_event(event)
