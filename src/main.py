@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.config import get_settings
+from src.infrastructure.rate_limiter import RateLimitMiddleware
 from src.interfaces.http.controllers import (
     audio_processing_controller,
     document_processing_controller,
@@ -94,6 +95,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+
+app.add_middleware(RateLimitMiddleware, settings=settings)
 
 # Register exception handlers
 register_exception_handlers(app)

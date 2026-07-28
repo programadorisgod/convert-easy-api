@@ -90,6 +90,9 @@ class Settings(BaseSettings):
     )
 
     # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_general_per_minute: int = 60
+    rate_limit_window_seconds: int = 60
     rate_limit_uploads_per_hour: int = 100
     rate_limit_concurrent_jobs_per_ip: int = 10
 
