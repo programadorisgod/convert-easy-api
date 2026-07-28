@@ -515,7 +515,6 @@ UUID filenames, /tmp storage, streaming downloads.
 - EXIF stripping planned (ImageMagick `-strip` flag)
 
 ### 📋 Pending
-- Rate limiting implementation (redis-based)
 - Path traversal protection in file storage
 - File size validation enforcement
 - MIME type validation with python-magic
@@ -725,3 +724,54 @@ Servicio singleton que valida el contenido real del archivo contra el formato de
 ```
 22 passed in ~3s
 ```
+
+---
+
+## ✅ Rate Limiting (COMPLETED)
+
+> SDD cycle: explore → propose → spec → design → tasks → apply → verify → archive
+
+### Resumen
+
+Rate limiting per-IP con Redis sliding window. Cero dependencias nuevas — usa `redis.asyncio` existente. Middleware ASGI puro con script Lua atómico.
+
+### Implementation
+
+**Files Created:**
+- `src/infrastructure/rate_limiter.py` — ASGI middleware, Lua ZSET sliding window, IP resolution, header injection
+- `tests/test_rate_limiter.py` — 18 unit tests (100% coverage)
+
+**Files Modified:**
+- `shared/config/settings.py` — +3 settings: `rate_limit_enabled`, `rate_limit_general_per_minute`, `rate_limit_window_seconds`
+- `src/main.py` — middleware registration (CORS outermost, rate limiter inner)
+- `.env.example` — documented new rate limit vars
+
+### Tiers
+
+| Tier | Limit | Window | Scope |
+|------|-------|--------|-------|
+| General | 60 req/min | 60s sliding | All endpoints |
+| Uploads | 100 req/hr | 3600s sliding | `/api/v1/upload/*` |
+
+### Design Decisions
+
+- **Fail-open**: Redis unavailable → requests pass through (availability > protection)
+- **OPTIONS passthrough**: CORS preflights bypass rate limiting
+- **Excluded paths**: `/health`, `/`, `/docs`, `/redoc`, `/openapi.json`
+- **IP detection**: `X-Forwarded-For` first value, fallback to `client.host`
+- **Middleware order**: CORSMiddleware outermost (handles OPTIONS first), RateLimitMiddleware inner
+
+### Verification
+
+```
+18/18 tests passed
+Coverage: rate_limiter.py → 100%
+Full suite: 87+ tests, 0 regressions
+Verdict: PASS
+```
+
+### Bugs Fixed
+
+1. **Recursion depth exceeded** — `_check_rate_limit` recursive retry without guard → replaced with inline retry
+2. **Lua type mismatch** — ARGV received as strings, compared as numbers → `tonumber()` at script entry
+3. **CORS preflight400** — rate limiter intercepting OPTIONS before CORS → skip OPTIONS in middleware

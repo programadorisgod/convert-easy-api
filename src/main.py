@@ -86,6 +86,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ponytail: CORS must be outermost to handle OPTIONS preflight before rate limiting
+app.add_middleware(RateLimitMiddleware, settings=settings)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -95,8 +98,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-
-app.add_middleware(RateLimitMiddleware, settings=settings)
 
 # Register exception handlers
 register_exception_handlers(app)

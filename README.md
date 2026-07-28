@@ -183,6 +183,7 @@ Once running, visit:
 - [x] **File Upload Workflow** — Create job → Upload (<10MB direct, >10MB chunked) → Start conversion
 - [x] **Job Management** — Status check, cancel, download (file deleted after download)
 - [x] **Redis + BullMQ** — Event store, job queue, persistence
+- [x] **Rate Limiting** — Redis sliding window, per-IP, configurable tiers (general/uploads), fail-open
 - [x] **69+ Tests** — Unit + Integration across all phases
 - [x] **OpenAPI Docs** — Swagger UI + ReDoc auto-generated
 
@@ -431,6 +432,52 @@ The project follows Clean Code principles:
 - ✅ Expires after: **24 hours**
 
 **Your files, your business. Zero compromise on privacy.**
+
+## Rate Limiting
+
+The API uses a Redis sliding window algorithm for per-IP rate limiting. Zero external dependencies — built on the existing `redis.asyncio` connection pool.
+
+### Tiers
+
+| Tier | Limit | Window | Scope |
+|------|-------|--------|-------|
+| **General** | 60 requests | 1 minute | All endpoints (default) |
+| **Uploads** | 100 requests | 1 hour | `/api/v1/upload/*` |
+
+### Response Headers
+
+Every response includes rate limit headers:
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 59
+X-RateLimit-Reset: 1753612800
+```
+
+When the limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header:
+
+```json
+{
+  "error": "RateLimitError",
+  "message": "Rate limit exceeded"
+}
+```
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RATE_LIMIT_ENABLED` | `true` | Toggle to enable/disable rate limiting |
+| `RATE_LIMIT_GENERAL_PER_MINUTE` | `60` | Requests per minute for general tier |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Sliding window duration (seconds) |
+| `RATE_LIMIT_UPLOADS_PER_HOUR` | `100` | Requests per hour for upload tier |
+
+### Design Decisions
+
+- **Fail-open**: If Redis is unavailable, requests pass through without rate limiting (availability > protection)
+- **OPTIONS passthrough**: CORS preflight requests bypass rate limiting entirely
+- **Excluded paths**: `/health`, `/`, `/docs`, `/redoc`, `/openapi.json` are not rate limited
+- **IP detection**: Uses `X-Forwarded-For` header (first value) for clients behind proxies, falls back to `client.host`
 
 ## Configuration
 

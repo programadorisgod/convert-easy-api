@@ -17,7 +17,11 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 logger = logging.getLogger(__name__)
 
 RATE_LIMIT_LUA = """
-local key, window, limit, now, uid = KEYS[1], ARGV[1], ARGV[2], ARGV[3], ARGV[4]
+local key = KEYS[1]
+local window = tonumber(ARGV[1])
+local limit = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local uid = ARGV[4]
 redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
 local count = redis.call('ZCARD', key)
 if count < limit then
@@ -91,17 +95,30 @@ class RateLimitMiddleware:
             )
             return bool(result[0]), int(result[1]), int(result[2])
         except Exception:
-            # Script SHA might be missing after Redis restart — reload once
+            # ponytail: reload SHA once after Redis restart, then propagate
             if self._lua_sha is not None:
                 self._lua_sha = None
-                return await self._check_rate_limit(
-                    client_ip, tier, limit, window, redis
+                self._lua_sha = await redis.script_load(RATE_LIMIT_LUA)
+                result = await redis.evalsha(
+                    self._lua_sha,
+                    1,
+                    key,
+                    str(window),
+                    str(limit),
+                    str(now),
+                    uid,
                 )
+                return bool(result[0]), int(result[1]), int(result[2])
             raise
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         # Only rate-limit HTTP requests
         if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # ponytail: skip OPTIONS — CORS preflights must pass through untouched
+        if scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 
