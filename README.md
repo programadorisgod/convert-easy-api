@@ -490,11 +490,7 @@ Key environment variables (see `.env.example`):
 
 ## License
 
-[To be determined]
-
-## Contributing
-
-[To be determined]
+[LICENSE](./LICENSE.md)
 
 ---
 
