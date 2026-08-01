@@ -278,7 +278,6 @@ class ConversionWorker:
             result = {
                 "format": output_format,
                 "size": output_path.stat().st_size,
-                "path": str(output_path),
             }
 
             # Calculate processing time
@@ -287,12 +286,10 @@ class ConversionWorker:
 
             # Get output info
             output_size_bytes = result["size"]
-            output_file_path = result["path"]
 
             # Mark job as completed
             event = JobCompleted.create(
                 job_id=job_id,
-                output_file_path=output_file_path,
                 output_size_bytes=output_size_bytes,
                 processing_time_seconds=processing_time_seconds,
             )

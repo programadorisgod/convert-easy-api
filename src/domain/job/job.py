@@ -46,7 +46,6 @@ class Job:
         self.input_format: str | None = None
         self.output_format: str | None = None
         self.file_size_bytes: int = 0
-        self.output_file_path: str | None = None
         self.output_size_bytes: int = 0
         self.error_message: str | None = None
         self.worker_id: str | None = None
@@ -132,7 +131,6 @@ class Job:
     def _apply_job_completed(self, event: JobCompleted) -> None:
         """Apply JobCompleted event."""
         self.status = JobStatus.COMPLETED
-        self.output_file_path = event.output_file_path
         self.output_size_bytes = event.output_size_bytes
         self.processing_time_seconds = event.processing_time_seconds
 
@@ -198,7 +196,6 @@ class Job:
             "input_format": self.input_format,
             "output_format": self.output_format,
             "file_size_bytes": self.file_size_bytes,
-            "output_file_path": self.output_file_path,
             "output_size_bytes": self.output_size_bytes,
             "error_message": self.error_message,
             "worker_id": self.worker_id,

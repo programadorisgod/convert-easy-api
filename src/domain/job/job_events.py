@@ -115,7 +115,6 @@ class JobCompleted(JobEvent):
     """Event: Job completed successfully."""
 
     event_type: str = "job.completed"
-    output_file_path: str
     output_size_bytes: int
     processing_time_seconds: float
 
@@ -123,18 +122,15 @@ class JobCompleted(JobEvent):
     def create(
         cls,
         job_id: str,
-        output_file_path: str,
         output_size_bytes: int,
         processing_time_seconds: float,
     ) -> "JobCompleted":
         """Factory method to create event."""
         return cls(
             job_id=job_id,
-            output_file_path=output_file_path,
             output_size_bytes=output_size_bytes,
             processing_time_seconds=processing_time_seconds,
             data={
-                "output_file_path": output_file_path,
                 "output_size_bytes": output_size_bytes,
                 "processing_time_seconds": processing_time_seconds,
             },

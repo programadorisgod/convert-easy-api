@@ -116,9 +116,6 @@ class JobStatusResponse(BaseModel):
     )
     error_message: str | None = Field(None, description="Error message if failed")
     worker_id: str | None = Field(None, description="Worker ID if processing")
-    output_file_path: str | None = Field(
-        None, description="Output file path if completed"
-    )
     version: int = Field(0, description="Event version")
 
 
