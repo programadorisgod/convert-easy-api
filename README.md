@@ -153,6 +153,7 @@ uv run fastapi run
 ### API Documentation
 
 Once running, visit:
+- **Scalar UI**: http://localhost:8000/scalar
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI JSON**: http://localhost:8000/openapi.json
