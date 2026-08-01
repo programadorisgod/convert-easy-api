@@ -135,6 +135,12 @@ class Settings(BaseSettings):
         default=85, ge=1, le=100, description="Default image quality for lossy formats"
     )
 
+    # Watermark
+    watermark_logo_dir: Path = Field(
+        default=Path("/tmp/easy_convert/logos"),
+        description="Directory containing allowed logo watermark files",
+    )
+
     # Document Conversion (Phase 2)
     supported_document_input_formats: list[str] = Field(
         default=[

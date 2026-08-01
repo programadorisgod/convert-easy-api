@@ -21,8 +21,10 @@ from shared.exceptions import (
     ValidationError,
     JobNotFoundError,
 )
+from shared.config import get_settings
 from src.application.commands import ProcessImageCommand
 from src.application.handlers import ProcessImageHandler
+from src.infrastructure.converters.watermark_service import resolve_watermark_logo
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.queue import BullMQAdapter
 from src.infrastructure.storage.file_storage import FileStorage
@@ -334,6 +336,10 @@ async def add_watermark(
             raise ValidationError("'text' field is required when type='text'")
         if request.type == "logo" and not request.logo_path:
             raise ValidationError("'logo_path' field is required when type='logo'")
+        if request.type == "logo":
+            # Reject anything that is not a plain logo file name in the
+            # allowed directory (blocks @file LFI, URLs, pseudo-protocols).
+            resolve_watermark_logo(request.logo_path, get_settings().watermark_logo_dir)
 
         watermark_params = {
             "text": request.text,

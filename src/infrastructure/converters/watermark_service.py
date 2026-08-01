@@ -5,14 +5,47 @@ Supports text and logo watermarks with configurable position, opacity, and size.
 
 import asyncio
 import logging
+import re
 import subprocess
 from enum import Enum
 from pathlib import Path
 
-from shared.exceptions import ProcessingError
+from shared.exceptions import ProcessingError, ValidationError
 
 
 logger = logging.getLogger(__name__)
+
+# Only a plain file name is accepted for logo watermarks: letters, digits,
+# dot, dash, underscore. Anything else (paths, schemes, @file, pipes,
+# pseudo-protocols) is rejected before it can reach ImageMagick.
+LOGO_FILE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def resolve_watermark_logo(logo_path: str | None, logo_dir: Path) -> Path:
+    """Resolve a user-supplied logo reference to a safe path inside logo_dir.
+
+    Only a plain file name is allowed. Directory components, URL schemes,
+    ImageMagick pseudo-protocols, ``@file`` reads and pipes are all stripped
+    or rejected, so the resolved path can never escape ``logo_dir``.
+
+    Raises:
+        ValidationError: if the reference is missing, not a plain name,
+            or the logo does not exist in ``logo_dir``.
+    """
+    if not logo_path:
+        raise ValidationError("'logo_path' is required for logo watermarks")
+
+    name = Path(str(logo_path)).name  # drops any directory/scheme components
+    if not LOGO_FILE_NAME_RE.fullmatch(name):
+        raise ValidationError(
+            "Invalid logo_path: only a plain file name (letters, digits, '.', '-', '_') is allowed"
+        )
+
+    resolved = logo_dir / name
+    if not resolved.is_file():
+        raise ValidationError(f"Logo not found in allowed directory: {name}")
+
+    return resolved
 
 
 class WatermarkPosition(str, Enum):

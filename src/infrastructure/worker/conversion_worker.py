@@ -40,6 +40,7 @@ from src.infrastructure.converters.image_pipeline import (
     CompressionLevel,
     WatermarkPosition,
 )
+from src.infrastructure.converters.watermark_service import resolve_watermark_logo
 
 
 logger = logging.getLogger(__name__)
@@ -717,7 +718,10 @@ class ConversionWorker:
             watermark_enabled=config_data.get("watermark_enabled", False),
             watermark_type=config_data.get("watermark_type"),
             watermark_text=watermark_params.get("text"),
-            watermark_logo_path=Path(watermark_params["logo_path"])
+            watermark_logo_path=resolve_watermark_logo(
+                watermark_params.get("logo_path"),
+                self.settings.watermark_logo_dir,
+            )
             if watermark_params.get("logo_path")
             else None,
             watermark_position=watermark_position,
