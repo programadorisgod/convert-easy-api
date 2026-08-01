@@ -52,6 +52,7 @@ class Job:
         self.processing_time_seconds: float = 0.0
         self.chunks_uploaded: int = 0
         self.total_chunks: int = 0
+        self._uploaded_chunk_indexes: set[int] = set()
         self.uploaded_bytes: int = 0
         self.created_at: datetime = datetime.now(timezone.utc)
         self.updated_at: datetime = datetime.now(timezone.utc)
@@ -118,7 +119,10 @@ class Job:
 
     def _apply_job_chunk_uploaded(self, event: ChunkUploaded) -> None:
         """Apply ChunkUploaded event."""
-        self.chunks_uploaded = event.chunk_index + 1
+        # Count UNIQUE chunks, not chunk_index + 1: a client uploading
+        # chunk 5 without chunks 0-4 must not report 6/10 complete.
+        self._uploaded_chunk_indexes.add(event.chunk_index)
+        self.chunks_uploaded = len(self._uploaded_chunk_indexes)
         self.total_chunks = event.total_chunks
         self.uploaded_bytes += event.chunk_size_bytes
         self.status = JobStatus.UPLOADING
