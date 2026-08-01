@@ -1,5 +1,7 @@
 """XML to XML transformation strategy using XSLT."""
 
+import asyncio
+
 from lxml import etree
 
 from .base import ConversionResult, XmlConversionStrategy
@@ -45,18 +47,21 @@ class XsltStrategy(XmlConversionStrategy):
         try:
             opts = XmlTransformOptions(**options)
 
-            # Parse XML and XSLT
-            xml_tree = etree.fromstring(xml_content)
-            xslt_tree = etree.fromstring(opts.xslt_content.encode("utf-8"))
+            # lxml parsing/XSLT is blocking C work: run off the event loop
+            # so one request cannot freeze all others.
+            xml_tree = await asyncio.to_thread(etree.fromstring, xml_content)
+            xslt_tree = await asyncio.to_thread(
+                etree.fromstring, opts.xslt_content.encode("utf-8")
+            )
 
             # Create transformer
-            transform = etree.XSLT(xslt_tree)
+            transform = await asyncio.to_thread(etree.XSLT, xslt_tree)
 
             # Apply transformation
-            result_tree = transform(xml_tree)
+            result_tree = await asyncio.to_thread(transform, xml_tree)
 
             # Get XML string
-            xml_output = str(result_tree)
+            xml_output = await asyncio.to_thread(str, result_tree)
 
             # Add XML declaration if requested
             if opts.preserve_declaration:

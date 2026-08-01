@@ -1,5 +1,6 @@
 """XML to HTML conversion strategy using XSLT templates."""
 
+import asyncio
 import html
 
 from lxml import etree
@@ -156,25 +157,28 @@ class HtmlStrategy(XmlConversionStrategy):
             # Get XSLT content
             if opts.custom_xslt:
                 # Security: block external document access before compiling
-                self.validate_xslt_content(opts.custom_xslt)
+                await asyncio.to_thread(self.validate_xslt_content, opts.custom_xslt)
                 xslt_content = opts.custom_xslt
             else:
                 xslt_content = XSLT_TEMPLATES.get(
                     opts.template, XSLT_TEMPLATES["table"]
                 )
 
-            # Parse XML and XSLT
-            xml_tree = etree.fromstring(xml_content)
-            xslt_tree = etree.fromstring(xslt_content.encode("utf-8"))
+            # lxml parsing/XSLT is blocking C work: run off the event loop
+            # so one request cannot freeze all others.
+            xml_tree = await asyncio.to_thread(etree.fromstring, xml_content)
+            xslt_tree = await asyncio.to_thread(
+                etree.fromstring, xslt_content.encode("utf-8")
+            )
 
             # Create transformer
-            transform = etree.XSLT(xslt_tree)
+            transform = await asyncio.to_thread(etree.XSLT, xslt_tree)
 
             # Apply transformation
-            result_tree = transform(xml_tree)
+            result_tree = await asyncio.to_thread(transform, xml_tree)
 
             # Get HTML string
-            html_content = str(result_tree)
+            html_content = await asyncio.to_thread(str, result_tree)
 
             # Update title if provided. The user-controlled title is HTML-
             # escaped before insertion so it cannot break out of the <title>

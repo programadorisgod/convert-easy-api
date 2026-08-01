@@ -1,5 +1,6 @@
 """XML to YAML conversion strategy using pyyaml and yq CLI."""
 
+import asyncio
 import subprocess
 from typing import Any
 
@@ -35,13 +36,19 @@ class YamlStrategy(XmlConversionStrategy):
 
             # First convert to dict (like JSON strategy)
             xml_str = xml_content.decode("utf-8")
-            data = xmltodict.parse(xml_str, process_comments=True)
+            data = await asyncio.to_thread(
+                xmltodict.parse, xml_str, process_comments=True
+            )
 
-            # Try yq first (better output), fallback to pyyaml
+            # Try yq first (better output), fallback to pyyaml.
+            # subprocess.run and pyyaml are blocking: run them off the
+            # event loop so one request cannot freeze all others.
             try:
-                yaml_str = self._convert_with_yq(data, opts)
+                yaml_str = await asyncio.to_thread(self._convert_with_yq, data, opts)
             except (FileNotFoundError, subprocess.CalledProcessError):
-                yaml_str = self._convert_with_pyyaml(data, opts)
+                yaml_str = await asyncio.to_thread(
+                    self._convert_with_pyyaml, data, opts
+                )
 
             # Prepend XML declaration if requested
             if opts.preserve_xml_declaration:

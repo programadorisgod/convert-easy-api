@@ -1,5 +1,6 @@
 """XML to JSON conversion strategy using xmltodict."""
 
+import asyncio
 import json
 
 import xmltodict
@@ -37,22 +38,27 @@ class JsonStrategy(XmlConversionStrategy):
             # Parse options
             opts = XmlJsonOptions(**options) if options else XmlJsonOptions()
 
-            # Parse XML to dict
+            # Parse XML to dict. xmltodict parsing, dict processing and
+            # json serialization are blocking CPU work: run off the event
+            # loop so one large request cannot freeze all others.
             xml_str = xml_content.decode("utf-8")
-            data = xmltodict.parse(
+            data = await asyncio.to_thread(
+                xmltodict.parse,
                 xml_str,
                 process_comments=True,
             )
 
             # Convert to JSON-compatible dict with options
-            json_data = self._process_dict(
+            json_data = await asyncio.to_thread(
+                self._process_dict,
                 data,
                 preserve_attrs=opts.preserve_attributes,
                 always_list=opts.always_as_list,
             )
 
             # Serialize to JSON
-            json_str = json.dumps(
+            json_str = await asyncio.to_thread(
+                json.dumps,
                 json_data,
                 indent=2,
                 ensure_ascii=False,
