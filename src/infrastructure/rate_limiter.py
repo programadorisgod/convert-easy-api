@@ -45,13 +45,29 @@ class RateLimitMiddleware:
         self._lua_sha: str | None = None
 
     async def _get_client_ip(self, scope: Scope) -> str:
-        """Extract client IP from X-Forwarded-For or scope client."""
+        """Extract the client IP, honoring the trusted-proxy setting.
+
+        X-Forwarded-For is fully attacker-controlled when the request reaches
+        the app directly. It is only trusted when ``rate_limit_trust_proxy``
+        is enabled (app is behind a reverse proxy that sets the header), and
+        then the RIGHTMOST value is used — the one added by the trusted
+        proxy, not the ones the client can inject on the left.
+        """
+        client = scope.get("client")
+        direct_ip = client[0] if client else "unknown"
+
+        if not (
+            self.settings
+            and getattr(self.settings, "rate_limit_trust_proxy", False)
+        ):
+            # No trusted proxy: ignore X-Forwarded-For entirely.
+            return direct_ip
+
         for name, value in scope.get("headers", []):
             if name == b"x-forwarded-for":
-                # ponytail: first value only, trust the leftmost proxy-set IP
-                return value.split(b",")[0].strip().decode()
-        client = scope.get("client")
-        return client[0] if client else "unknown"
+                # ponytail: last hop = the trusted proxy's addition
+                return value.split(b",")[-1].strip().decode()
+        return direct_ip
 
     def _classify_tier(self, path: str) -> tuple[str, int, int]:
         """Return (tier_name, limit, window_seconds) for a given path."""

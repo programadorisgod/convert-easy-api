@@ -45,6 +45,7 @@ def _make_settings(**overrides):
     )
     s.rate_limit_window_seconds = overrides.get("rate_limit_window_seconds", 60)
     s.rate_limit_uploads_per_hour = overrides.get("rate_limit_uploads_per_hour", 100)
+    s.rate_limit_trust_proxy = overrides.get("rate_limit_trust_proxy", False)
     return s
 
 
@@ -86,35 +87,66 @@ class TestClassifyTier:
 
 class TestGetClientIp:
     @pytest.mark.asyncio
-    async def test_xff_single_ip(self):
-        mw = RateLimitMiddleware(MagicMock())
+    async def test_xff_ignored_without_trusted_proxy(self):
+        """Attacker-supplied X-Forwarded-For must not override the socket IP."""
+        mw = RateLimitMiddleware(MagicMock(), settings=_make_settings())
+        scope = _make_scope(headers=[(b"x-forwarded-for", b"203.0.113.50")])
+        ip = await mw._get_client_ip(scope)
+        assert ip == "127.0.0.1"
+
+    @pytest.mark.asyncio
+    async def test_spoofed_xff_chain_ignored_without_trusted_proxy(self):
+        mw = RateLimitMiddleware(MagicMock(), settings=_make_settings())
+        scope = _make_scope(
+            headers=[(b"x-forwarded-for", b"203.0.113.50, 70.41.3.18")]
+        )
+        ip = await mw._get_client_ip(scope)
+        assert ip == "127.0.0.1"
+
+    @pytest.mark.asyncio
+    async def test_trusted_proxy_uses_rightmost_value(self):
+        """With a trusted proxy, take the value the proxy appended (rightmost)."""
+        mw = RateLimitMiddleware(
+            MagicMock(), settings=_make_settings(rate_limit_trust_proxy=True)
+        )
+        scope = _make_scope(
+            headers=[(b"x-forwarded-for", b"203.0.113.50, 70.41.3.18")]
+        )
+        ip = await mw._get_client_ip(scope)
+        assert ip == "70.41.3.18"
+
+    @pytest.mark.asyncio
+    async def test_trusted_proxy_single_value(self):
+        mw = RateLimitMiddleware(
+            MagicMock(), settings=_make_settings(rate_limit_trust_proxy=True)
+        )
         scope = _make_scope(headers=[(b"x-forwarded-for", b"203.0.113.50")])
         ip = await mw._get_client_ip(scope)
         assert ip == "203.0.113.50"
 
     @pytest.mark.asyncio
-    async def test_xff_multiple_ips_uses_first(self):
-        mw = RateLimitMiddleware(MagicMock())
-        scope = _make_scope(
-            headers=[(b"x-forwarded-for", b"203.0.113.50, 70.41.3.18")]
-        )
-        ip = await mw._get_client_ip(scope)
-        assert ip == "203.0.113.50"
-
-    @pytest.mark.asyncio
     async def test_no_xff_falls_back_to_client(self):
-        mw = RateLimitMiddleware(MagicMock())
+        mw = RateLimitMiddleware(MagicMock(), settings=_make_settings())
         scope = _make_scope()
         ip = await mw._get_client_ip(scope)
         assert ip == "127.0.0.1"
 
     @pytest.mark.asyncio
     async def test_no_client_returns_unknown(self):
-        mw = RateLimitMiddleware(MagicMock())
+        mw = RateLimitMiddleware(MagicMock(), settings=_make_settings())
         scope = _make_scope()
         scope["client"] = None
         ip = await mw._get_client_ip(scope)
         assert ip == "unknown"
+
+    @pytest.mark.asyncio
+    async def test_trusted_proxy_no_xff_falls_back_to_client(self):
+        mw = RateLimitMiddleware(
+            MagicMock(), settings=_make_settings(rate_limit_trust_proxy=True)
+        )
+        scope = _make_scope()
+        ip = await mw._get_client_ip(scope)
+        assert ip == "127.0.0.1"
 
 
 # ---------------------------------------------------------------------------

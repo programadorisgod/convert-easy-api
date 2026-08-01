@@ -97,6 +97,7 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     rate_limit_uploads_per_hour: int = 100
     rate_limit_concurrent_jobs_per_ip: int = 10
+    rate_limit_trust_proxy: bool = False
 
     # Image Conversion (Phase 1)
     supported_image_input_formats: list[str] = Field(
