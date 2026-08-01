@@ -51,10 +51,6 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Log CORS configuration for debugging
-logger.info(f"CORS Origins configured: {settings.cors_origins}")
-logger.info(f"CORS Origins type: {type(settings.cors_origins)}")
-
 
 app = FastAPI(
     title=settings.app_name,
@@ -113,8 +109,6 @@ app.include_router(video_processing_controller.router, prefix=settings.api_v1_pr
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)
-
-logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
 
 
 @app.get("/scalar", include_in_schema=False)

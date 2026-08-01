@@ -146,5 +146,3 @@ def register_exception_handlers(app):
     app.add_exception_handler(ChunkAssemblyError, chunk_assembly_error_handler)
     app.add_exception_handler(RateLimitError, rate_limit_error_handler)
     app.add_exception_handler(Exception, generic_error_handler)
-
-    logger.info("Exception handlers registered")

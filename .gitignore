@@ -104,4 +104,7 @@ volumes/
 # Agent Tooling Layer
 .atl/
 
+# Editor tool state
+.serena/
+
 tests/*
