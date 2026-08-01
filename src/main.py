@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 
 from shared.config import get_settings
+from src.infrastructure.body_size_middleware import MaxBodySizeMiddleware
 from src.infrastructure.rate_limiter import RateLimitMiddleware
 from src.interfaces.http.controllers import (
     audio_processing_controller,
@@ -85,6 +86,13 @@ app = FastAPI(
 
 # ponytail: CORS must be outermost to handle OPTIONS preflight before rate limiting
 app.add_middleware(RateLimitMiddleware, settings=settings)
+
+# Reject oversized bodies before the app buffers them (uploads, XML, PDF...).
+# max_file_size_mb covers the file; +1MB slack covers multipart overhead.
+app.add_middleware(
+    MaxBodySizeMiddleware,
+    max_body_bytes=(settings.max_file_size_mb + 1) * 1024 * 1024,
+)
 
 app.add_middleware(
     CORSMiddleware,

@@ -53,6 +53,7 @@ class Job:
         self.processing_time_seconds: float = 0.0
         self.chunks_uploaded: int = 0
         self.total_chunks: int = 0
+        self.uploaded_bytes: int = 0
         self.created_at: datetime = datetime.now(timezone.utc)
         self.updated_at: datetime = datetime.now(timezone.utc)
 
@@ -120,6 +121,7 @@ class Job:
         """Apply ChunkUploaded event."""
         self.chunks_uploaded = event.chunk_index + 1
         self.total_chunks = event.total_chunks
+        self.uploaded_bytes += event.chunk_size_bytes
         self.status = JobStatus.UPLOADING
 
     def _apply_job_started(self, event: JobStarted) -> None:

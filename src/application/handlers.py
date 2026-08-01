@@ -172,6 +172,15 @@ class UploadChunkHandler:
                 f"Chunk index {command.chunk_index} exceeds total {job.total_chunks}"
             )
 
+        # Validate cumulative size against the declared file size.
+        # The declared size was already checked against max_file_size_mb at
+        # job creation, so this bounds total disk usage per job.
+        if job.uploaded_bytes + len(command.chunk_data) > job.file_size_bytes:
+            raise ValidationError(
+                f"Uploaded bytes {job.uploaded_bytes + len(command.chunk_data)} "
+                f"exceed declared file size {job.file_size_bytes}"
+            )
+
         # Save chunk to storage
         await self.storage.save_chunk(
             job.file_id, command.chunk_index, command.chunk_data
@@ -248,6 +257,13 @@ class UploadCompleteFileHandler:
         if job.total_chunks != 1:
             raise ValidationError(
                 f"Job expects {job.total_chunks} chunks, use chunk upload instead"
+            )
+
+        # Validate size against the declared file size (see UploadChunkHandler)
+        if len(command.file_data) > job.file_size_bytes:
+            raise ValidationError(
+                f"File size {len(command.file_data)} exceeds declared "
+                f"file size {job.file_size_bytes}"
             )
 
         # Save file to storage

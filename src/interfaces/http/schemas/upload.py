@@ -27,6 +27,7 @@ class CreateJobRequest(BaseModel):
         default=1,
         description="Number of chunks for upload (1 for complete file)",
         ge=1,
+        le=1000,
     )
 
     @field_validator("input_format", "output_formats")
