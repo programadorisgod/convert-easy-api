@@ -159,20 +159,22 @@ class PdfProcessor:
         parte_path = output_path.parent / "parte.pdf"
         resto_path = output_path.parent / "resto.pdf"
 
-        with parte_path.open("wb") as f_selected:
-            selected.write(f_selected)
+        try:
+            with parte_path.open("wb") as f_selected:
+                selected.write(f_selected)
 
-        with resto_path.open("wb") as f_remaining:
-            remaining.write(f_remaining)
+            with resto_path.open("wb") as f_remaining:
+                remaining.write(f_remaining)
 
-        with zipfile.ZipFile(
-            output_path, "w", compression=zipfile.ZIP_DEFLATED
-        ) as zip_file:
-            zip_file.write(parte_path, arcname="parte.pdf")
-            zip_file.write(resto_path, arcname="resto.pdf")
-
-        parte_path.unlink(missing_ok=True)
-        resto_path.unlink(missing_ok=True)
+            with zipfile.ZipFile(
+                output_path, "w", compression=zipfile.ZIP_DEFLATED
+            ) as zip_file:
+                zip_file.write(parte_path, arcname="parte.pdf")
+                zip_file.write(resto_path, arcname="resto.pdf")
+        finally:
+            # Temp PDFs must not survive a failure mid-split.
+            parte_path.unlink(missing_ok=True)
+            resto_path.unlink(missing_ok=True)
 
     def _merge_pdfs(
         self,

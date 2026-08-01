@@ -103,11 +103,16 @@ class FileStorage:
             # Write chunk atomically (write to temp, then rename)
             temp_path = chunk_path.with_suffix(".tmp")
 
-            async with aiofiles.open(temp_path, "wb") as f:
-                await f.write(chunk_data)
+            try:
+                async with aiofiles.open(temp_path, "wb") as f:
+                    await f.write(chunk_data)
 
-            # Atomic rename
-            await aiofiles.os.rename(temp_path, chunk_path)
+                # Atomic rename
+                await aiofiles.os.rename(temp_path, chunk_path)
+            finally:
+                # A failed write/rename must not leave the temp file behind.
+                if temp_path.exists():
+                    await aiofiles.os.remove(temp_path)
 
             chunk_size_mb = len(chunk_data) / (1024 * 1024)
             logger.info(
@@ -156,20 +161,25 @@ class FileStorage:
             output_path = self._get_file_path(file_id)
             temp_output = output_path.with_suffix(".tmp")
 
-            async with aiofiles.open(temp_output, "wb") as out_file:
-                for i in range(total_chunks):
-                    chunk_path = self._get_chunk_path(file_id, i)
+            try:
+                async with aiofiles.open(temp_output, "wb") as out_file:
+                    for i in range(total_chunks):
+                        chunk_path = self._get_chunk_path(file_id, i)
 
-                    async with aiofiles.open(chunk_path, "rb") as chunk_file:
-                        # Stream chunk to output file
-                        while True:
-                            data = await chunk_file.read(1024 * 1024)  # 1MB buffer
-                            if not data:
-                                break
-                            await out_file.write(data)
+                        async with aiofiles.open(chunk_path, "rb") as chunk_file:
+                            # Stream chunk to output file
+                            while True:
+                                data = await chunk_file.read(1024 * 1024)  # 1MB buffer
+                                if not data:
+                                    break
+                                await out_file.write(data)
 
-            # Atomic rename
-            await aiofiles.os.rename(temp_output, output_path)
+                # Atomic rename
+                await aiofiles.os.rename(temp_output, output_path)
+            finally:
+                # A failed write/rename must not leave the assembled temp file.
+                if temp_output.exists():
+                    await aiofiles.os.remove(temp_output)
 
             # Get file size
             file_size = output_path.stat().st_size
@@ -212,10 +222,15 @@ class FileStorage:
             file_path = self._get_file_path(file_id)
             temp_path = file_path.with_suffix(".tmp")
 
-            async with aiofiles.open(temp_path, "wb") as f:
-                await f.write(file_data)
+            try:
+                async with aiofiles.open(temp_path, "wb") as f:
+                    await f.write(file_data)
 
-            await aiofiles.os.rename(temp_path, file_path)
+                await aiofiles.os.rename(temp_path, file_path)
+            finally:
+                # A failed write/rename must not leave the temp file behind.
+                if temp_path.exists():
+                    await aiofiles.os.remove(temp_path)
 
             file_size_mb = len(file_data) / (1024 * 1024)
             logger.info(f"Saved file {file_id} ({file_size_mb:.2f} MB)")
