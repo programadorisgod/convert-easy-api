@@ -3,6 +3,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Response
 from typing import Annotated
 
+from shared.http import safe_download_filename
 from src.infrastructure.converters import XmlConverter
 from src.infrastructure.converters.xml.exceptions import (
     XmlConversionError,
@@ -74,11 +75,14 @@ async def convert_xml_to_json(
 
     try:
         result = await XmlConverter.convert(content, "json", options)
+        download_name = safe_download_filename(
+            filename.replace(".xml", ".json"), "converted.json"
+        )
         return Response(
             content=result.content,
             media_type=result.content_type,
             headers={
-                "Content-Disposition": f'attachment; filename="{filename.replace(".xml", ".json")}"'
+                "Content-Disposition": f'attachment; filename="{download_name}"'
             },
         )
     except XmlConversionError as e:
@@ -120,11 +124,14 @@ async def convert_xml_to_yaml(
 
     try:
         result = await XmlConverter.convert(content, "yaml", options)
+        download_name = safe_download_filename(
+            filename.replace(".xml", ".yaml"), "converted.yaml"
+        )
         return Response(
             content=result.content,
             media_type=result.content_type,
             headers={
-                "Content-Disposition": f'attachment; filename="{filename.replace(".xml", ".yaml")}"'
+                "Content-Disposition": f'attachment; filename="{download_name}"'
             },
         )
     except XmlConversionError as e:

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import StreamingResponse
 
 from shared.exceptions import JobNotFoundError, ValidationError
+from shared.http import safe_download_filename
 from src.application.commands import CancelJobCommand, GetJobStatusCommand
 from src.application.handlers import CancelJobHandler, GetJobStatusHandler
 from src.infrastructure.persistence import JobRepository
@@ -191,7 +192,7 @@ async def download_result(
             file_stream(),
             media_type=media_type,
             headers={
-                "Content-Disposition": f'attachment; filename="converted.{download_extension}"',
+                "Content-Disposition": f'attachment; filename="{safe_download_filename(f"converted.{download_extension}")}"',
                 "Content-Length": str(output_path.stat().st_size),
             },
         )
