@@ -181,12 +181,15 @@ async def download_result(
 
         # Stream file for download
         async def file_stream():
-            async for chunk in storage.stream_file(output_path):
-                yield chunk
-
-            # Clean up files after download
-            await storage.cleanup_file(job.file_id, include_output=True)
-            logger.info(f"Cleaned up files for job {job_id} after download")
+            try:
+                async for chunk in storage.stream_file(output_path):
+                    yield chunk
+            finally:
+                # Clean up even when the client aborts mid-download:
+                # Starlette closes the generator with GeneratorExit, so
+                # code after the loop would never run.
+                await storage.cleanup_file(job.file_id, include_output=True)
+                logger.info(f"Cleaned up files for job {job_id} after download")
 
         return StreamingResponse(
             file_stream(),
