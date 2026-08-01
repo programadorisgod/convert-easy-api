@@ -10,14 +10,6 @@ from ..schemas import XmlTransformOptions
 class XsltStrategy(XmlConversionStrategy):
     """Transforms XML using XSLT with sandboxed execution."""
 
-    # Security: Elements/functions to strip from XSLT
-    FORBIDDEN_ELEMENTS = {
-        "document",  # Prevents reading external files
-        "include",  # Prevents including external XSLT
-        "import",  # Prevents importing external XSLT
-        "write",  # Prevents writing files
-    }
-
     def get_content_type(self) -> str:
         return "application/xml"
 
@@ -37,26 +29,7 @@ class XsltStrategy(XmlConversionStrategy):
             raise XmlValidationError("xslt_content is required")
 
         # Validate XSLT syntax
-        self._validate_xslt_syntax(opts.xslt_content)
-
-    def _validate_xslt_syntax(self, xslt_content: str) -> None:
-        """Validate XSLT syntax and check for security issues."""
-        try:
-            xslt_bytes = xslt_content.encode("utf-8")
-            xslt_tree = etree.fromstring(xslt_bytes)
-
-            # Check for forbidden elements (security)
-            for element in self.FORBIDDEN_ELEMENTS:
-                # Check both local name and with namespace
-                found = xslt_tree.xpath(f"//*[local-name()='{element}']")
-                if found:
-                    raise XmlXsltError(
-                        f"Forbidden XSLT element '{element}' detected. "
-                        "External document access is not allowed for security.",
-                    )
-
-        except etree.XMLSyntaxError as e:
-            raise XmlXsltError(f"Invalid XSLT syntax: {e}")
+        self.validate_xslt_content(opts.xslt_content)
 
     async def convert(self, xml_content: bytes, options: dict) -> ConversionResult:
         """

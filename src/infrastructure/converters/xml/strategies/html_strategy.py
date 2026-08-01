@@ -153,6 +153,8 @@ class HtmlStrategy(XmlConversionStrategy):
 
             # Get XSLT content
             if opts.custom_xslt:
+                # Security: block external document access before compiling
+                self.validate_xslt_content(opts.custom_xslt)
                 xslt_content = opts.custom_xslt
             else:
                 xslt_content = XSLT_TEMPLATES.get(

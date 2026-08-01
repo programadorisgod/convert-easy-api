@@ -158,8 +158,8 @@ async def convert_xml_to_html(
     # Validate
     XmlConverter.validate_xml(content, filename)
 
-    # Custom XSLT is async only
-    if custom_xslt and file_size >= MAX_SYNC_SIZE_HTML:
+    # Custom XSLT is async-only (async path not implemented yet)
+    if custom_xslt:
         raise HTTPException(
             status_code=501, detail="Custom XSLT conversion is async-only."
         )
