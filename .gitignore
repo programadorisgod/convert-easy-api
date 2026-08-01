@@ -106,5 +106,3 @@ volumes/
 
 # Editor tool state
 .serena/
-
-tests/*
