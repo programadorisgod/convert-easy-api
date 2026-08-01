@@ -1,5 +1,7 @@
 """XML to HTML conversion strategy using XSLT templates."""
 
+import html
+
 from lxml import etree
 
 from .base import ConversionResult, XmlConversionStrategy
@@ -174,9 +176,16 @@ class HtmlStrategy(XmlConversionStrategy):
             # Get HTML string
             html_content = str(result_tree)
 
-            # Update title if provided
+            # Update title if provided. The user-controlled title is HTML-
+            # escaped before insertion so it cannot break out of the <title>
+            # tag (XSS). Replace only the built-in title tag, not every
+            # "XML Data" occurrence in the document body.
             if opts.title:
-                html_content = html_content.replace("XML Data", opts.title)
+                escaped_title = html.escape(opts.title)
+                html_content = html_content.replace(
+                    "<title>XML Data</title>",
+                    f"<title>{escaped_title}</title>",
+                )
 
             return ConversionResult(
                 content=html_content.encode("utf-8"),

@@ -78,6 +78,65 @@ def test_builtin_template_still_converts(client):
 
 
 # ---------------------------------------------------------------------------
+# Behavior: user-supplied title must not inject HTML/JS (XSS)
+# ---------------------------------------------------------------------------
+
+def test_title_script_injection_is_escaped(client):
+    """A </title><script> payload must never become live markup."""
+    payload = "</title><script>alert(1)</script>"
+    response = client.post(
+        "/api/v1/convert/xml/html",
+        files={"file": ("catalog.xml", XML_CONTENT, "application/xml")},
+        data={"template": "table", "title": payload},
+    )
+
+    assert response.status_code == 200
+    assert "<script>alert(1)</script>" not in response.text
+    assert "&lt;/title&gt;" in response.text
+
+
+def test_title_ampersand_is_escaped(client):
+    response = client.post(
+        "/api/v1/convert/xml/html",
+        files={"file": ("catalog.xml", XML_CONTENT, "application/xml")},
+        data={"template": "table", "title": "A & B"},
+    )
+
+    assert response.status_code == 200
+    assert "A &amp; B" in response.text
+    assert "A & B" not in response.text
+
+
+def test_title_only_replaces_title_tag_not_body(client):
+    """'XML Data' text inside the document body must not be overwritten."""
+    xml_with_data_text = b"""<?xml version="1.0" encoding="UTF-8"?>
+<catalog><book><title>XML Data</title></book></catalog>"""
+    response = client.post(
+        "/api/v1/convert/xml/html",
+        files={"file": ("catalog.xml", xml_with_data_text, "application/xml")},
+        data={"template": "table", "title": "My Title"},
+    )
+
+    assert response.status_code == 200
+    # The page <title> was replaced…
+    assert "<title>My Title</title>" in response.text
+    # …but the body still shows the original XML value untouched.
+    assert "<td>XML Data</td>" in response.text
+
+
+@pytest.mark.asyncio
+async def test_html_strategy_escapes_title():
+    strategy = HtmlStrategy()
+    result = await strategy.convert(
+        XML_CONTENT,
+        {"template": "table", "title": '<img src=x onerror=alert(1)>'},
+    )
+
+    assert b"<img src=x onerror=alert(1)>" not in result.content
+    assert b"&lt;img src=x onerror=alert(1)&gt;" in result.content
+
+
+# ---------------------------------------------------------------------------
 # Defense in depth: the strategy itself must reject forbidden XSLT elements
 # (this is what protects the future async path)
 # ---------------------------------------------------------------------------
