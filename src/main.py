@@ -19,6 +19,7 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from scalar_fastapi import get_scalar_api_reference
 
 from shared.config import get_settings
 from src.infrastructure.rate_limiter import RateLimitMiddleware
@@ -114,6 +115,14 @@ app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_pref
 app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)
 
 logger.info(f"API routers registered with prefix: {settings.api_v1_prefix}")
+
+
+@app.get("/scalar", include_in_schema=False)
+async def scalar_html():
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        scalar_proxy_url="https://proxy.scalar.com",
+    )
 
 
 @app.get("/health", tags=["Health"], response_model=HealthResponse)
