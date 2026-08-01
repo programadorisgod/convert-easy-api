@@ -80,8 +80,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Configure ImageMagick policy to allow all operations
-RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/g' /etc/ImageMagick-6/policy.xml || true
+# Keep Debian's default ImageMagick policy: PDF coder (and thus the Ghostscript
+# delegate) stays blocked. Re-enabling it is a known RCE vector (ImageTragick family).
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
