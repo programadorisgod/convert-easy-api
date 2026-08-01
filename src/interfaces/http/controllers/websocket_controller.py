@@ -8,12 +8,19 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from shared.config import get_settings
+from shared.exceptions import JobNotFoundError
 from src.infrastructure.events import get_connection_manager
+from src.lifespan import get_repository
 
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
+
+# WebSocket close codes (4000+ are application-defined).
+WS_POLICY_VIOLATION = 1008
+WS_JOB_NOT_FOUND = 4404
 
 
 @router.websocket("/jobs/{job_id}")
@@ -44,6 +51,23 @@ async def job_updates(job_id: str, websocket: WebSocket):
         job_id: Job identifier to subscribe to
         websocket: WebSocket connection
     """
+    # Reject cross-site connections: browsers always send an Origin header,
+    # so a page on an untrusted origin must never subscribe to job events.
+    origin = websocket.headers.get("origin")
+    if origin and origin not in get_settings().cors_origins:
+        logger.warning(f"WebSocket rejected for job {job_id}: bad origin {origin}")
+        await websocket.close(code=WS_POLICY_VIOLATION)
+        return
+
+    # Reject unknown jobs: a job_id is the only capability token, so we must
+    # not subscribe a client to a job that does not exist.
+    try:
+        await get_repository().get_job(job_id)
+    except JobNotFoundError:
+        logger.warning(f"WebSocket rejected: job {job_id} not found")
+        await websocket.close(code=WS_JOB_NOT_FOUND)
+        return
+
     manager = get_connection_manager()
 
     try:
