@@ -136,8 +136,10 @@ class ImageMagickConverter:
             # Flatten transparency to white background for formats without alpha
             cmd.extend(["-background", "white", "-flatten"])
 
-        # Add output path
-        cmd.append(str(output_path))
+        # Add output path with explicit format prefix.
+        # The output file has no extension (UUID-based), so without the prefix
+        # ImageMagick would write the INPUT format, not the requested one.
+        cmd.append(f"{output_format.upper()}:{output_path}")
 
         # Execute conversion
         try:
