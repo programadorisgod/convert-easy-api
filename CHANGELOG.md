@@ -1,5 +1,17 @@
 # Changelog - Easy Convert API
 
+## [PDF to Markdown] - 2026-08-31
+
+### Added
+- Added `pdf -> md` / `pdf -> markdown` conversion path in `DocumentConverter` via `pymupdf4llm` (layout-aware text + tables, no image extraction).
+- Import `pymupdf4llm` as optional dependency with a clear runtime error if missing.
+
+### Changed
+- Expanded supported PDF output formats: `txt`, `md`, `markdown`, `docx`, `odt`, `html`.
+
+### Dependencies
+- Added `pymupdf4llm`.
+
 ## [Phase 2 - PDF Processor Integration] - 2026-03-16
 
 ### Added

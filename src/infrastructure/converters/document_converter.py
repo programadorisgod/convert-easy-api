@@ -27,6 +27,11 @@ try:
 except Exception:  # pragma: no cover - handled at runtime with clear error
     Pdf2DocxConverter = None
 
+try:
+    import pymupdf4llm
+except Exception:  # pragma: no cover - handled at runtime with clear error
+    pymupdf4llm = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +149,10 @@ class DocumentConverter:
             desired_output = output_path.with_suffix(f".{out_fmt}")
             if out_fmt == "txt":
                 produced = await self._convert_pdf_to_text(input_path, desired_output)
+            elif out_fmt in {"md", "markdown"}:
+                produced = await self._convert_pdf_to_markdown(
+                    input_path, desired_output
+                )
             elif out_fmt == "docx":
                 produced = await self._convert_pdf_to_docx(input_path, desired_output)
             elif out_fmt == "odt":
@@ -170,7 +179,8 @@ class DocumentConverter:
                 )
             else:
                 raise UnsupportedFormatError(
-                    f"pdf->{out_fmt} is not supported. Supported from pdf: txt, docx, odt, html"
+                    f"pdf->{out_fmt} is not supported. Supported from pdf: "
+                    "txt, md, docx, odt, html"
                 )
 
             if output_path.exists():
@@ -434,6 +444,23 @@ class DocumentConverter:
             return output_path
         except Exception as exc:
             raise ProcessingError(f"PDF to TXT conversion failed: {exc}") from exc
+
+    async def _convert_pdf_to_markdown(
+        self, input_path: Path, output_path: Path
+    ) -> Path:
+        """Convert PDF to Markdown using pymupdf4llm (layouts, no images)."""
+        if pymupdf4llm is None:
+            raise ProcessingError(
+                "PDF to Markdown conversion requires 'pymupdf4llm' dependency"
+            )
+
+        try:
+            # ponytail: text + tables only, no image extraction (default)
+            markdown = await asyncio.to_thread(pymupdf4llm.to_markdown, str(input_path))
+            output_path.write_text(markdown, encoding="utf-8")
+            return output_path
+        except Exception as exc:
+            raise ProcessingError(f"PDF to Markdown conversion failed: {exc}") from exc
 
     async def _convert_pdf_to_docx(self, input_path: Path, output_path: Path) -> Path:
         """Convert PDF to DOCX using pdf2docx."""

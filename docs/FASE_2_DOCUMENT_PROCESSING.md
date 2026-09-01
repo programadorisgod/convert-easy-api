@@ -24,6 +24,7 @@ La **Fase 2** agrega conversión de documentos con selección automática de mot
 
 ### 4. **Soporte Actual de PDF como Entrada** 📌
 - `pdf -> txt` se procesa con extracción de texto (`pypdf`).
+- `pdf -> md` se procesa con `pymupdf4llm` (texto y tablas en Markdown, sin imágenes).
 - `pdf -> docx` se procesa con `pdf2docx`.
 - `pdf -> odt` se procesa como pipeline `pdf2docx` -> `docx -> odt` (LibreOffice).
 - Para PDFs escaneados, la calidad depende de OCR previo.
@@ -244,7 +245,7 @@ curl -X POST http://localhost:8000/api/v1/process/document \
 | Documentos Office | `doc`, `docx`, `odt`, `rtf` |
 | Hojas de Cálculo | `xls`, `xlsx`, `ods`, `csv`, `tsv` |
 | Presentaciones | `ppt`, `pptx`, `odp` |
-| eBook / Otros | `epub`, `pdf` (salidas soportadas: `txt`, `docx`, `odt`) |
+| eBook / Otros | `epub`, `pdf` (salidas soportadas: `txt`, `md`, `docx`, `odt`) |
 
 ### Salida
 

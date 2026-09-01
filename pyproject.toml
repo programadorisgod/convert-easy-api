@@ -24,6 +24,7 @@ dependencies = [
     "xmltodict>=0.13.0",
     "pyyaml>=6.0",
     "scalar-fastapi>=1.8.2",
+    "pymupdf4llm>=0.0.15",
 ]
 
 [build-system]
