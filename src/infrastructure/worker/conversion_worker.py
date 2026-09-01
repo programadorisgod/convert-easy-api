@@ -40,6 +40,9 @@ from src.infrastructure.converters.image_pipeline import (
     CompressionLevel,
     WatermarkPosition,
 )
+from src.infrastructure.converters.image_to_pdf_converter import (
+    get_image_to_pdf_converter,
+)
 from src.infrastructure.converters.watermark_service import resolve_watermark_logo
 
 
@@ -193,6 +196,7 @@ class ConversionWorker:
 
             pdf_config = job_data.get("pdf_config") or {}
             xml_config = job_data.get("xml_config") or {}
+            image_to_pdf_config = job_data.get("image_to_pdf_config") or {}
 
             is_image_job = self.settings.is_image_format_supported(
                 input_format
@@ -214,7 +218,14 @@ class ConversionWorker:
                 output_format, is_output=True
             )
 
-            if pdf_config:
+            if image_to_pdf_config:
+                logger.info("Using image-to-PDF flow")
+                output_path = await self._convert_images_to_pdf(
+                    input_path=input_path,
+                    file_id=file_id,
+                    image_to_pdf_config=image_to_pdf_config,
+                )
+            elif pdf_config:
                 logger.info("Using PDF processing flow")
                 output_path = await self._process_pdf(
                     input_path=input_path,
@@ -497,6 +508,42 @@ class ConversionWorker:
             if isinstance(e, ProcessingError):
                 raise
             raise ProcessingError(f"PDF processing failed: {e}")
+
+    async def _convert_images_to_pdf(
+        self,
+        input_path: Path,
+        file_id: str,
+        image_to_pdf_config: dict[str, Any],
+    ) -> Path:
+        """Convert one or more images into a single PDF.
+
+        The primary input image becomes page 1; each source file id becomes
+        a subsequent page, in the order stored in the config.
+
+        Args:
+            input_path: Path to the primary image file (page 1)
+            file_id: Job file identifier
+            image_to_pdf_config: Config dict with `source_file_ids`
+
+        Returns:
+            Path to the generated PDF
+
+        Raises:
+            ProcessingError: If conversion fails
+        """
+        try:
+            paths = [input_path]
+            for source_file_id in image_to_pdf_config.get("source_file_ids", []):
+                paths.append(await self.storage.get_file(source_file_id))
+
+            output_path = self.storage._get_output_path(file_id)
+            converter = get_image_to_pdf_converter()
+            return await converter.convert(paths, output_path)
+        except Exception as e:
+            logger.error(f"Image to PDF conversion failed: {e}", exc_info=True)
+            if isinstance(e, ProcessingError):
+                raise
+            raise ProcessingError(f"Image to PDF conversion failed: {e}")
 
     async def _process_xml(
         self,

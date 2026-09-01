@@ -6,6 +6,7 @@ from . import (
     pdf_processing_controller,
     video_processing_controller,
     xml_conversion_controller,
+    image_to_pdf_controller,
 )
 
 
@@ -15,4 +16,5 @@ __all__ = [
     "pdf_processing_controller",
     "video_processing_controller",
     "xml_conversion_controller",
+    "image_to_pdf_controller",
 ]

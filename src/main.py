@@ -34,6 +34,7 @@ from src.interfaces.http.controllers import (
     upload_controller,
     websocket_controller,
     xml_conversion_controller,
+    image_to_pdf_controller,
 )
 from src.interfaces.http.exception_handlers import register_exception_handlers
 from src.interfaces.http.schemas.health import HealthResponse
@@ -117,6 +118,7 @@ app.include_router(video_processing_controller.router, prefix=settings.api_v1_pr
 app.include_router(document_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(pdf_processing_controller.router, prefix=settings.api_v1_prefix)
 app.include_router(xml_conversion_controller.router, prefix=settings.api_v1_prefix)
+app.include_router(image_to_pdf_controller.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/scalar", include_in_schema=False)

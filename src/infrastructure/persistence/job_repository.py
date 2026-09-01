@@ -30,6 +30,7 @@ from src.domain.job import (
     BackgroundRemoved,
     ImageCompressed,
     WatermarkApplied,
+    ImagesToPdfConfigured,
 )
 
 
@@ -65,6 +66,7 @@ class JobRepository:
         "BackgroundRemoved": BackgroundRemoved,
         "ImageCompressed": ImageCompressed,
         "WatermarkApplied": WatermarkApplied,
+        "ImagesToPdfConfigured": ImagesToPdfConfigured,
     }
 
     def __init__(self, redis_client: Redis):

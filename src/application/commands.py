@@ -251,3 +251,16 @@ class ProcessPdfCommand:
     operation: str
     operation_params: dict[str, Any] | None = None
     source_job_ids: list[str] | None = None
+
+
+@dataclass(frozen=True)
+class ProcessImageToPdfCommand:
+    """Command to combine one or more images into a single PDF.
+
+    Attributes:
+        job_id: Job identifier of the first image (page 1)
+        source_job_ids: Image job identifiers for the remaining pages in order
+    """
+
+    job_id: str
+    source_job_ids: list[str] | None = None

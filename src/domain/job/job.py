@@ -21,6 +21,7 @@ from .job_events import (
     JobCompleted,
     JobFailed,
     JobCancelled,
+    ImagesToPdfConfigured,
 )
 
 
@@ -63,6 +64,7 @@ class Job:
         self.image_compressed: bool = False
         self.watermark_applied: bool = False
         self.compression_reduction_percent: float = 0.0
+        self.image_to_pdf_source_file_ids: list[str] | None = None
 
         # Event tracking
         self._events: list[JobEvent] = []
@@ -154,6 +156,11 @@ class Job:
         """Apply ImageProcessingConfigured event."""
         self.pipeline_config = event.pipeline_config
 
+    def _apply_job_images_to_pdf_configured(self, event: ImagesToPdfConfigured) -> None:
+        """Apply ImagesToPdfConfigured event."""
+        self.image_to_pdf_source_file_ids = event.source_file_ids
+        self.output_format = "pdf"
+
     def _apply_job_background_removed(self, event) -> None:
         """Apply BackgroundRemoved event."""
         self.background_removed = True
@@ -214,6 +221,7 @@ class Job:
             "image_compressed": self.image_compressed,
             "watermark_applied": self.watermark_applied,
             "compression_reduction_percent": self.compression_reduction_percent,
+            "image_to_pdf_source_file_ids": self.image_to_pdf_source_file_ids,
             "version": self._version,
         }
 

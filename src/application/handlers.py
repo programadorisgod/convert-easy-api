@@ -28,6 +28,7 @@ from src.application.commands import (
     ProcessPdfCommand,
     ProcessAudioCommand,
     ProcessVideoCommand,
+    ProcessImageToPdfCommand,
 )
 from src.domain.job import (
     JobCreated,
@@ -35,6 +36,7 @@ from src.domain.job import (
     JobCancelled,
     JobStatus,
     ImageProcessingConfigured,
+    ImagesToPdfConfigured,
 )
 from src.infrastructure.persistence import JobRepository
 from src.infrastructure.storage.file_storage import FileStorage
@@ -1026,4 +1028,99 @@ class ProcessPdfHandler:
             "job_id": command.job_id,
             "status": "queued",
             "pdf_config": pdf_config,
+        }
+
+
+class ProcessImageToPdfHandler:
+    """Handler that combines one or more image jobs into a single PDF.
+
+    Mirrors the PDF-merge flow: the primary image job becomes page 1 and
+    each additional image job (source_job_ids) becomes a subsequent page,
+    in the order provided by the client.
+    """
+
+    def __init__(
+        self,
+        repository: JobRepository,
+        queue: BullMQAdapter,
+        storage: FileStorage,
+    ):
+        self.repository = repository
+        self.queue = queue
+        self.storage = storage
+        self.event_bus = get_event_bus()
+
+    async def handle(self, command: ProcessImageToPdfCommand) -> dict:
+        job = await self.repository.get_job(command.job_id)
+        source_job_ids = list(command.source_job_ids or [])
+
+        if not job.can_start_processing():
+            raise ValidationError(f"Cannot process job in state: {job.status}")
+
+        from shared.config import get_settings
+
+        settings = get_settings()
+
+        # Primary image must be a supported image format.
+        input_format = job.input_format or ""
+        if not settings.is_image_format_supported(input_format):
+            raise ValidationError("Primary job must be an uploaded image")
+
+        assert job.file_id is not None
+
+        primary_file_path = await self.storage.get_file(job.file_id)
+        get_mime_validator().validate(primary_file_path, input_format)
+
+        # Resolve the remaining pages in order. Each source job must itself
+        # reference an uploaded image so the combined PDF only contains images.
+        source_file_ids: list[str] = []
+        for source_job_id in source_job_ids:
+            if source_job_id == command.job_id:
+                continue
+
+            source_job = await self.repository.get_job(source_job_id)
+            source_input_format = source_job.input_format or ""
+            if not settings.is_image_format_supported(source_input_format):
+                raise ValidationError(
+                    f"Source job {source_job_id} must reference an uploaded image"
+                )
+
+            assert source_job.file_id is not None
+
+            source_file_path = await self.storage.get_file(source_job.file_id)
+            get_mime_validator().validate(source_file_path, source_input_format)
+            source_file_ids.append(source_job.file_id)
+
+        image_to_pdf_config = {
+            "source_file_ids": source_file_ids,
+        }
+
+        event = ImagesToPdfConfigured.create(
+            job_id=command.job_id,
+            source_file_ids=source_file_ids,
+        )
+        job.add_event(event)
+        await self.repository.save_events(command.job_id, [event])
+        await self.event_bus.publish(event)
+
+        job_data = {
+            "job_id": command.job_id,
+            "file_id": job.file_id,
+            "input_format": job.input_format,
+            "output_format": "pdf",
+            "image_to_pdf_config": image_to_pdf_config,
+        }
+
+        await self.queue.enqueue(command.job_id, job_data)
+
+        logger.info(
+            f"Configured image-to-PDF for job {command.job_id} "
+            f"({1 + len(source_job_ids)} image(s))"
+        )
+
+        return {
+            "job_id": command.job_id,
+            "status": "queued",
+            "page_count": 1 + len(source_job_ids),
+            "image_to_pdf_config": image_to_pdf_config,
         }

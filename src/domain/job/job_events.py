@@ -212,6 +212,26 @@ class ImageProcessingConfigured(JobEvent):
         )
 
 
+class ImagesToPdfConfigured(JobEvent):
+    """Event: An image-to-PDF job was configured."""
+
+    event_type: str = "job.images_to_pdf_configured"
+    source_file_ids: list[str]
+
+    @classmethod
+    def create(
+        cls,
+        job_id: str,
+        source_file_ids: list[str],
+    ) -> "ImagesToPdfConfigured":
+        """Factory method to create event."""
+        return cls(
+            job_id=job_id,
+            source_file_ids=source_file_ids,
+            data={"source_file_ids": source_file_ids},
+        )
+
+
 class BackgroundRemoved(JobEvent):
     """Event: Background was removed from image."""
 

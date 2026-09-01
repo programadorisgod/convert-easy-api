@@ -15,6 +15,7 @@ from .job_events import (
     BackgroundRemoved,
     ImageCompressed,
     WatermarkApplied,
+    ImagesToPdfConfigured,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "BackgroundRemoved",
     "ImageCompressed",
     "WatermarkApplied",
+    "ImagesToPdfConfigured",
 ]
