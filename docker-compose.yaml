@@ -33,6 +33,9 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # Align the in-container uvicorn port with the published 8000:8000 and
+      # the healthcheck below; the Dockerfile defaults to Render's PORT (10000).
+      - PORT=8000
     volumes:
       - /tmp/easy-convert:/tmp/easy-convert
     depends_on:
