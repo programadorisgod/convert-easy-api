@@ -71,6 +71,21 @@ class TestVideoConverterReal:
         assert result.stat().st_size > 0
 
     @pytest.mark.integration
+    async def test_convert_mp4_to_mp4_default(self, ffmpeg_available, sample_video, tmp_path):
+        """Convert MP4 to MP4 without extra parameters (standard re-encoding/web optimization)."""
+        from src.infrastructure.converters.video_converter import get_video_converter
+
+        converter = get_video_converter()
+        output = tmp_path / "mp4_to_mp4"
+        result = await converter.convert(
+            input_path=sample_video,
+            output_path=output,
+            output_format="mp4",
+        )
+        assert result.exists()
+        assert result.stat().st_size > 0
+
+    @pytest.mark.integration
     async def test_convert_with_crf(self, ffmpeg_available, sample_video, tmp_path):
         """Converting with CRF override produces valid output."""
         from src.infrastructure.converters.video_converter import get_video_converter

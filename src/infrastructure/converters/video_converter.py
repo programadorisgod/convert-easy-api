@@ -51,6 +51,18 @@ class VideoConverter:
         "m4v": "libx264",
     }
 
+    # Map output format to FFmpeg audio encoder for video container.
+    AUDIO_ENCODERS: dict[str, str] = {
+        "mp4": "aac",
+        "mkv": "aac",
+        "mov": "aac",
+        "avi": "mp3",
+        "webm": "libopus",
+        "flv": "mp3",
+        "mpeg": "mp2",
+        "m4v": "aac",
+    }
+
     # Audio encoders used when extract_audio=True.
     PREFERRED_AUDIO_ENCODERS: dict[str, str] = {
         "mp3": "libmp3lame",
@@ -218,6 +230,8 @@ class VideoConverter:
             video_enc = self.VIDEO_ENCODERS.get(output_format)
             if video_enc:
                 cmd.extend(["-c:v", video_enc])
+            if video_enc == "libx264":
+                cmd.extend(["-pix_fmt", "yuv420p"])
             if crf is not None:
                 cmd.extend(["-crf", str(crf)])
             if resolution:
@@ -225,17 +239,28 @@ class VideoConverter:
             if fps:
                 cmd.extend(["-r", str(fps)])
             cmd.extend(["-an"])
+            if output_format in ("mp4", "m4v", "mov"):
+                cmd.extend(["-movflags", "+faststart"])
         else:
             # Normal video conversion.
             video_enc = self.VIDEO_ENCODERS.get(output_format)
             if video_enc:
                 cmd.extend(["-c:v", video_enc])
+            if video_enc == "libx264":
+                cmd.extend(["-pix_fmt", "yuv420p"])
             if crf is not None:
                 cmd.extend(["-crf", str(crf)])
             if resolution:
                 cmd.extend(["-vf", f"scale={resolution}"])
             if fps:
                 cmd.extend(["-r", str(fps)])
+
+            audio_enc = self.AUDIO_ENCODERS.get(output_format)
+            if audio_enc:
+                cmd.extend(["-c:a", audio_enc])
+
+            if output_format in ("mp4", "m4v", "mov"):
+                cmd.extend(["-movflags", "+faststart"])
 
         cmd.append(str(output_path.with_suffix(f".{output_format}")))
         return cmd

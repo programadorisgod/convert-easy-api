@@ -819,21 +819,8 @@ class ProcessVideoHandler:
         if not job.can_start_processing():
             raise ValidationError(f"Cannot process job in state: {job.status}")
 
-        out_fmt = command.output_format.lower().lstrip(".")
-        in_fmt = job.input_format.lower().lstrip(".")
-
-        # Output must differ from input unless processing params are set
-        # (e.g. re-encode mp4→mp4 with CRF, resolution, FPS, trim, or remove_audio)
-        has_processing_params = any([
-            command.crf is not None,
-            command.resolution is not None,
-            command.fps is not None,
-            command.trim_start is not None,
-            command.trim_duration is not None,
-            command.remove_audio,
-        ])
-        if out_fmt == in_fmt and not has_processing_params:
-            raise ValidationError("Output format must differ from input format")
+        # Same format conversion (e.g. mp4→mp4) is supported for
+        # re-encoding, codec normalization, compression, and web optimization.
 
         # Validate CRF range
         if command.crf is not None and not (0 <= command.crf <= 51):

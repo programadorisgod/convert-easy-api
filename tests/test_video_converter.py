@@ -57,6 +57,24 @@ class TestVideoConverterCodecMapping:
         for fmt, expected_encoder in self.EXPECTED_AUDIO_ENCODERS.items():
             assert VideoConverter.PREFERRED_AUDIO_ENCODERS[fmt] == expected_encoder
 
+    EXPECTED_CONTAINER_AUDIO_ENCODERS = {
+        "mp4": "aac",
+        "mkv": "aac",
+        "mov": "aac",
+        "avi": "mp3",
+        "webm": "libopus",
+        "flv": "mp3",
+        "mpeg": "mp2",
+        "m4v": "aac",
+    }
+
+    def test_video_container_audio_encoder_mapping_matches(self):
+        """Each video container format maps to the expected audio encoder."""
+        from src.infrastructure.converters.video_converter import VideoConverter
+
+        for fmt, expected_encoder in self.EXPECTED_CONTAINER_AUDIO_ENCODERS.items():
+            assert VideoConverter.AUDIO_ENCODERS[fmt] == expected_encoder
+
 
 class TestVideoConverterInputFormats:
     """Verify input format list."""
@@ -269,6 +287,24 @@ class TestVideoConverterCommandBuilding:
         assert cmd[-1] == "/tmp/out.mkv"
         assert cmd.index("-i") < cmd.index("-ss")
 
+    def test_mp4_conversion_includes_web_optimizations(self, converter):
+        """Converting to MP4 includes -c:a aac, -pix_fmt yuv420p, and -movflags +faststart."""
+        cmd = converter._build_ffmpeg_command(
+            input_path=Path("/tmp/input.mp4"),
+            output_path=Path("/tmp/output"),
+            output_format="mp4",
+        )
+        assert "-c:a" in cmd
+        ca_idx = cmd.index("-c:a")
+        assert cmd[ca_idx + 1] == "aac"
+        assert "-pix_fmt" in cmd
+        pix_idx = cmd.index("-pix_fmt")
+        assert cmd[pix_idx + 1] == "yuv420p"
+        assert "-movflags" in cmd
+        mov_idx = cmd.index("-movflags")
+        assert cmd[mov_idx + 1] == "+faststart"
+        assert cmd[-1] == "/tmp/output.mp4"
+
     def test_unsupported_output_format(self, converter):
         """OUTPUT_FORMATS does not include wmv — validation catches it in convert()."""
         from src.infrastructure.converters.video_converter import VideoConverter
@@ -351,15 +387,16 @@ class TestProcessVideoHandlerValidation:
         )
         return await handler.handle(cmd)
 
-    def test_output_equals_input_without_params_raises_error(self, handler):
-        """Same format without processing params → ValidationError."""
+    def test_output_equals_input_without_params_passes(self, handler):
+        """Same format without processing params (e.g. mp4→mp4) is allowed for transcoding/web optimization."""
         h, repo = handler
         repo.get_job.return_value.input_format = "mp4"
 
         import asyncio
 
-        with pytest.raises(ValidationError, match="must differ"):
-            asyncio.run(self._call(h, "mp4"))
+        res = asyncio.run(self._call(h, "mp4"))
+        assert res["status"] == "queued"
+        assert res["video_config"]["crf"] is None
 
     def test_output_equals_input_with_crf_passes(self, handler):
         """Same format with CRF (re-encode) → allowed."""

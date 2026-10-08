@@ -8,7 +8,7 @@ Video format conversion and processing via `POST /api/v1/process/video` using FF
 
 ### Requirement: Video Format Conversion
 
-The system MUST accept video uploads at `POST /api/v1/process/video` and convert formats using FFmpeg. Input MUST be from the supported list. Output MUST be supported and MUST differ from input. The system SHALL return HTTP 202 with `job_id` on successful queue.
+The system MUST accept video uploads at `POST /api/v1/process/video` and convert formats using FFmpeg. Input MUST be from the supported list. Output MUST be supported. Same-format conversions (such as `mp4` to `mp4`) ARE supported for re-encoding, codec normalization, compression, and web streaming optimization. The system SHALL return HTTP 202 with `job_id` on successful queue.
 
 Supported input formats (10): `mp4`, `mkv`, `mov`, `avi`, `webm`, `flv`, `wmv`, `mpeg`, `3gp`, `m4v`
 Supported output formats (8): `mp4`, `mkv`, `mov`, `avi`, `webm`, `flv`, `mpeg`, `m4v`
@@ -39,10 +39,12 @@ Codec mapping per output format:
 - WHEN POST `/api/v1/process/video`
 - THEN HTTP 400 listing supported formats
 
-#### Scenario: Output equals input format
+#### Scenario: Output equals input format (mp4 → mp4)
 
 - GIVEN an mp4 file with `output_format: mp4`
-- THEN HTTP 400 "Output format must differ from input format"
+- WHEN POST `/api/v1/process/video`
+- THEN HTTP 202 with `job_id`
+- AND the job SHALL complete with a re-encoded, web-optimized mp4 file
 
 ### Requirement: Video Compression (CRF)
 
