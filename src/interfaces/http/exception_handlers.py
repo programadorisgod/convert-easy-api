@@ -1,6 +1,7 @@
 """Exception handlers for HTTP API.
 
-Converts domain exceptions to appropriate HTTP responses.
+Converts domain exceptions to appropriate HTTP responses while preventing
+information disclosure of internal paths, tool stderr, or tracebacks.
 """
 
 import logging
@@ -9,6 +10,7 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from shared.exceptions import (
+    AppError,
     ValidationError,
     UnsupportedFormatError,
     FileSizeLimitError,
@@ -16,119 +18,72 @@ from shared.exceptions import (
     ProcessingError,
     ChunkAssemblyError,
     RateLimitError,
+    FileCorruptedError,
 )
 
 
 logger = logging.getLogger(__name__)
 
 
-async def validation_error_handler(
-    request: Request, exc: ValidationError
+def _get_request_id(request: Request) -> str:
+    """Extract request_id from request state or header."""
+    return getattr(request.state, "request_id", None) or request.headers.get("X-Request-ID", "")
+
+
+def _create_error_response(
+    request: Request,
+    status_code: int,
+    error_code: str,
+    user_message: str,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    """Handle validation errors."""
-    logger.warning(f"Validation error: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={
-            "error": "ValidationError",
-            "message": str(exc),
-        },
-    )
+    """Create standardized error response."""
+    request_id = _get_request_id(request)
+    response_headers = dict(headers or {})
+    if request_id:
+        response_headers["X-Request-ID"] = request_id
+
+    content = {
+        "error": error_code,
+        "message": user_message,
+        "request_id": request_id,
+    }
+    return JSONResponse(status_code=status_code, content=content, headers=response_headers)
 
 
-async def unsupported_format_error_handler(
-    request: Request, exc: UnsupportedFormatError
-) -> JSONResponse:
-    """Handle unsupported format errors."""
-    logger.warning(f"Unsupported format: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={
-            "error": "UnsupportedFormatError",
-            "message": str(exc),
-        },
-    )
+async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    """Handle all domain AppError exceptions."""
+    req_id = _get_request_id(request)
+    if exc.status_code >= 500:
+        logger.error(
+            f"Server AppError [{req_id}] {exc.error_code}: {exc.user_message} | "
+            f"Technical details: {exc.technical_details}",
+            exc_info=True,
+        )
+    else:
+        logger.warning(
+            f"Client AppError [{req_id}] {exc.error_code}: {exc.user_message} | "
+            f"Technical details: {exc.technical_details}"
+        )
 
-
-async def file_size_limit_error_handler(
-    request: Request, exc: FileSizeLimitError
-) -> JSONResponse:
-    """Handle file size limit errors."""
-    logger.warning(f"File size limit exceeded: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-        content={
-            "error": "FileSizeLimitError",
-            "message": str(exc),
-        },
-    )
-
-
-async def job_not_found_error_handler(
-    request: Request, exc: JobNotFoundError
-) -> JSONResponse:
-    """Handle job not found errors."""
-    logger.warning(f"Job not found: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={
-            "error": "JobNotFoundError",
-            "message": str(exc),
-        },
-    )
-
-
-async def processing_error_handler(
-    request: Request, exc: ProcessingError
-) -> JSONResponse:
-    """Handle processing errors."""
-    logger.error(f"Processing error: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "ProcessingError",
-            "message": str(exc),
-        },
-    )
-
-
-async def chunk_assembly_error_handler(
-    request: Request, exc: ChunkAssemblyError
-) -> JSONResponse:
-    """Handle chunk assembly errors."""
-    logger.error(f"Chunk assembly error: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "ChunkAssemblyError",
-            "message": str(exc),
-        },
-    )
-
-
-async def rate_limit_error_handler(
-    request: Request, exc: RateLimitError
-) -> JSONResponse:
-    """Handle rate limit errors."""
-    logger.warning(f"Rate limit exceeded: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        content={
-            "error": "RateLimitError",
-            "message": str(exc),
-        },
+    return _create_error_response(
+        request=request,
+        status_code=exc.status_code,
+        error_code=exc.error_code,
+        user_message=exc.user_message,
+        headers=exc.headers,
     )
 
 
 async def generic_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle all other unexpected errors."""
-    logger.error(f"Unexpected error: {exc}", exc_info=True)
-    return JSONResponse(
+    """Handle all other uncaught unexpected errors."""
+    req_id = _get_request_id(request)
+    logger.error(f"Uncaught unexpected error [{req_id}]: {exc}", exc_info=True)
+    return _create_error_response(
+        request=request,
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "InternalServerError",
-            "message": "An unexpected error occurred. Please try again later.",
-        },
+        error_code="INTERNAL_SERVER_ERROR",
+        user_message="An unexpected error occurred while processing your request. Please try again or contact support.",
     )
 
 
@@ -138,11 +93,13 @@ def register_exception_handlers(app):
     Args:
         app: FastAPI application instance
     """
-    app.add_exception_handler(ValidationError, validation_error_handler)
-    app.add_exception_handler(UnsupportedFormatError, unsupported_format_error_handler)
-    app.add_exception_handler(FileSizeLimitError, file_size_limit_error_handler)
-    app.add_exception_handler(JobNotFoundError, job_not_found_error_handler)
-    app.add_exception_handler(ProcessingError, processing_error_handler)
-    app.add_exception_handler(ChunkAssemblyError, chunk_assembly_error_handler)
-    app.add_exception_handler(RateLimitError, rate_limit_error_handler)
+    app.add_exception_handler(AppError, app_error_handler)
+    app.add_exception_handler(ValidationError, app_error_handler)
+    app.add_exception_handler(UnsupportedFormatError, app_error_handler)
+    app.add_exception_handler(FileSizeLimitError, app_error_handler)
+    app.add_exception_handler(JobNotFoundError, app_error_handler)
+    app.add_exception_handler(ProcessingError, app_error_handler)
+    app.add_exception_handler(ChunkAssemblyError, app_error_handler)
+    app.add_exception_handler(RateLimitError, app_error_handler)
+    app.add_exception_handler(FileCorruptedError, app_error_handler)
     app.add_exception_handler(Exception, generic_error_handler)

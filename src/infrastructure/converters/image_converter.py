@@ -48,7 +48,7 @@ class ImageMagickConverter:
     QUALITY_FORMATS = {"jpg", "jpeg", "webp", "avif", "heic", "png"}
 
     # Formats that support transparency
-    TRANSPARENCY_FORMATS = {"png", "webp", "gif", "tiff"}
+    TRANSPARENCY_FORMATS = {"png", "webp", "gif", "tiff", "avif"}
 
     def __init__(self):
         """Initialize ImageMagick converter."""
@@ -117,6 +117,18 @@ class ImageMagickConverter:
         if not self.settings.is_image_format_supported(output_format):
             raise UnsupportedFormatError(output_format)
 
+        # ImageMagick delegate in Linux/Debian builds is read-only for AVIF ('r--').
+        # Use Pillow's native AVIF encoder instead for reliable write/export.
+        if output_format == "avif":
+            return await self._convert_with_pillow(
+                input_path=input_path,
+                output_path=output_path,
+                output_format=output_format,
+                quality=quality,
+                strip_metadata=strip_metadata,
+                preserve_transparency=preserve_transparency,
+            )
+
         # Build ImageMagick command
         cmd = [self._magick_path, str(input_path)]
 
@@ -154,11 +166,18 @@ class ImageMagickConverter:
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"
                 logger.error(f"ImageMagick error: {error_msg}")
-                raise ProcessingError(f"Conversion failed: {error_msg}")
+                raise ProcessingError(
+                    detail=f"Conversion failed: {error_msg}",
+                    user_message=f"Failed to convert image to {output_format.upper()}.",
+                    technical_details=f"ImageMagick exit {process.returncode}: {error_msg}",
+                )
 
             # Verify output was created
             if not output_path.exists():
-                raise ProcessingError("Output file was not created")
+                raise ProcessingError(
+                    detail="Output file was not created",
+                    user_message="Failed to generate converted image.",
+                )
 
             output_size = output_path.stat().st_size
             output_size_mb = output_size / (1024 * 1024)
@@ -173,11 +192,103 @@ class ImageMagickConverter:
             if process:
                 process.kill()
             raise ProcessingError(
-                f"Conversion timed out after {self.settings.max_conversion_time_seconds}s"
+                detail=f"Conversion timed out after {self.settings.max_conversion_time_seconds}s",
+                user_message="Image conversion timed out. Please try with a smaller file.",
             )
         except Exception as e:
+            if isinstance(e, ProcessingError):
+                raise
             logger.error(f"Conversion failed: {e}", exc_info=True)
-            raise ProcessingError(f"Image conversion failed: {e}")
+            raise ProcessingError(
+                detail=f"Image conversion failed: {e}",
+                user_message="Failed to process image.",
+                technical_details=str(e),
+            )
+
+    def _convert_pillow_sync(
+        self,
+        input_path: Path,
+        output_path: Path,
+        quality: int | None,
+        strip_metadata: bool,
+        preserve_transparency: bool,
+    ) -> Path:
+        """Synchronously encode image using Pillow (used for AVIF and formats lacking ImageMagick write delegates)."""
+        try:
+            from PIL import Image
+
+            with Image.open(input_path) as img:
+                has_alpha = (
+                    img.mode in ("RGBA", "LA")
+                    or (img.mode == "P" and "transparency" in img.info)
+                )
+
+                if preserve_transparency and has_alpha:
+                    converted = img.convert("RGBA")
+                else:
+                    if has_alpha:
+                        rgba = img.convert("RGBA")
+                        bg = Image.new("RGB", rgba.size, (255, 255, 255))
+                        bg.paste(rgba, mask=rgba.split()[3])
+                        converted = bg
+                    else:
+                        converted = img.convert("RGB")
+
+                quality_val = quality or self.QUALITY_SETTINGS.get("avif", 80)
+                save_kwargs: dict[str, Any] = {
+                    "format": "AVIF",
+                    "quality": quality_val,
+                }
+
+                if not strip_metadata:
+                    if "exif" in img.info:
+                        save_kwargs["exif"] = img.info["exif"]
+                    if "icc_profile" in img.info:
+                        save_kwargs["icc_profile"] = img.info["icc_profile"]
+
+                converted.save(output_path, **save_kwargs)
+
+            if not output_path.exists():
+                raise ProcessingError(
+                    detail="Output file was not created",
+                    user_message="Failed to generate converted image.",
+                )
+
+            output_size = output_path.stat().st_size
+            output_size_mb = output_size / (1024 * 1024)
+            logger.info(
+                f"✅ Conversion complete via Pillow: {output_path.name} ({output_size_mb:.2f} MB)"
+            )
+            return output_path
+
+        except Exception as e:
+            if isinstance(e, ProcessingError):
+                raise
+            logger.error(f"Pillow conversion error: {e}", exc_info=True)
+            raise ProcessingError(
+                detail=f"Pillow conversion failed: {e}",
+                user_message="We could not convert your image to AVIF. The file may be invalid or corrupted.",
+                technical_details=str(e),
+            )
+
+    async def _convert_with_pillow(
+        self,
+        input_path: Path,
+        output_path: Path,
+        output_format: str,
+        quality: int | None,
+        strip_metadata: bool,
+        preserve_transparency: bool,
+    ) -> Path:
+        """Asynchronously convert image using Pillow in thread pool."""
+        return await asyncio.to_thread(
+            self._convert_pillow_sync,
+            input_path,
+            output_path,
+            quality,
+            strip_metadata,
+            preserve_transparency,
+        )
 
     async def get_image_info(self, image_path: Path) -> dict[str, Any]:
         """Get information about an image using ImageMagick identify.

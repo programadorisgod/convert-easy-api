@@ -23,6 +23,7 @@ Easy Convert is a file conversion service designed with privacy as the core prin
 
 - **📷 Images**: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)
 - **📄 Documents/PDF/XML**: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)
+- **🪵 Logging & Error Handling**: [docs/LOGGING.md](docs/LOGGING.md)
 
 ## Architecture
 

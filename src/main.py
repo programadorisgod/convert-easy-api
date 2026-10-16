@@ -40,19 +40,15 @@ from src.interfaces.http.controllers import (
 from src.interfaces.http.exception_handlers import register_exception_handlers
 from src.interfaces.http.schemas.health import HealthResponse
 from src.interfaces.http.schemas.root import RootResponse
+from src.infrastructure.logging.setup import configure_logging
+from src.infrastructure.logging.middleware import RequestIdMiddleware
 
 from .lifespan import lifespan
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+settings = get_settings()
+configure_logging(settings)
 
 logger = logging.getLogger(__name__)
-
-
-settings = get_settings()
 
 
 app = FastAPI(
@@ -91,6 +87,7 @@ app.add_middleware(RateLimitMiddleware, settings=settings)
 
 # Reject oversized bodies before the app buffers them (uploads, XML, PDF...).
 # max_file_size_mb covers the file; +1MB slack covers multipart overhead.
+app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     MaxBodySizeMiddleware,
     max_body_bytes=(settings.max_file_size_mb + 1) * 1024 * 1024,

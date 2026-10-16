@@ -16,7 +16,8 @@ from bullmq import Worker, Job as BullMQJob
 
 from shared.config import get_settings
 from shared.events import get_event_bus
-from shared.exceptions import ProcessingError
+from shared.exceptions import AppError, ProcessingError, sanitize_user_error_message
+from src.infrastructure.logging.context import set_job_id
 from src.domain.job import (
     JobStarted,
     JobCompleted,
@@ -146,6 +147,7 @@ class ConversionWorker:
             ProcessingError: If conversion fails
         """
         job_id = bullmq_job.id
+        set_job_id(job_id)
         start_time = datetime.now(timezone.utc)
 
         logger.info(f"📋 Processing job {job_id}")
@@ -321,15 +323,19 @@ class ConversionWorker:
             }
 
         except Exception as e:
-            logger.error(f"❌ Job {job_id} failed: {e}", exc_info=True)
-
-            # Sanitize: don't leak Python internals to the frontend
-            error_msg = str(e)
-            if re.search(r"(src\.|\.py\b|Traceback|File \")", error_msg):
-                logger.debug(f"Sanitized internal error: {error_msg}")
-                user_msg = "An internal processing error occurred."
+            if isinstance(e, AppError):
+                user_msg = e.user_message
+                error_code = e.error_code
+                tech_details = e.technical_details
             else:
-                user_msg = error_msg
+                user_msg = sanitize_user_error_message(str(e))
+                error_code = type(e).__name__
+                tech_details = str(e)
+
+            logger.error(
+                f"❌ Job {job_id} failed: {user_msg} | Technical details: {tech_details}",
+                exc_info=True,
+            )
 
             # Mark job as failed (only if not already in terminal state)
             try:
@@ -345,7 +351,7 @@ class ConversionWorker:
                     event = JobFailed.create(
                         job_id=job_id,
                         error_message=user_msg,
-                        error_code=type(e).__name__,
+                        error_code=error_code,
                     )
                     job.apply_event(event)
                     await self.repository.save_events(job_id, [event])
@@ -355,7 +361,9 @@ class ConversionWorker:
 
             if isinstance(e, ProcessingError):
                 raise
-            raise ProcessingError(f"Job processing failed: {e}")
+            raise ProcessingError(detail=user_msg, technical_details=tech_details)
+        finally:
+            set_job_id("")
 
     async def _convert_image(
         self,
@@ -397,6 +405,8 @@ class ConversionWorker:
             return output_path
 
         except Exception as e:
+            if isinstance(e, ProcessingError):
+                raise
             logger.error(f"Conversion failed: {e}", exc_info=True)
             raise ProcessingError(f"Image conversion failed: {e}")
 
@@ -446,6 +456,8 @@ class ConversionWorker:
             return result_path
 
         except Exception as e:
+            if isinstance(e, ProcessingError):
+                raise
             logger.error(f"Pipeline processing failed: {e}", exc_info=True)
             raise ProcessingError(f"Image pipeline processing failed: {e}")
 

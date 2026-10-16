@@ -270,6 +270,12 @@ class Settings(BaseSettings):
     # Observability
     log_level: str = "INFO"
     structured_logs: bool = True
+    log_dir: Path = Field(
+        default=Path("logs"), description="Directory to store rotating log files"
+    )
+    log_retention_days: int = Field(
+        default=3, description="Number of days to retain rotated log files before auto-deletion"
+    )
 
     def get_temp_dir(self) -> Path:
         """Get temp directory, ensuring it exists."""

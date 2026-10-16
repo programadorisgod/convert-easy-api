@@ -63,3 +63,35 @@ async def test_png_to_png_still_writes_png_bytes(png_input, tmp_path):
     data = await _convert_to(png_input, out, "png")
 
     assert data[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.asyncio
+async def test_png_to_avif_writes_avif_bytes(png_input, tmp_path):
+    """Requesting avif must produce valid AVIF bytes via Pillow."""
+    out = tmp_path / "out_noext"
+    data = await _convert_to(png_input, out, "avif")
+
+    # AVIF container has 'ftyp' at offset 4 and 'avif' / 'avis' / 'mif1' in the header
+    assert b"ftyp" in data[:16]
+    assert b"avif" in data[:32] or b"avis" in data[:32] or b"mif1" in data[:32]
+
+
+def test_sanitize_user_error_message():
+    """Verify that internal paths and tool errors are never exposed in user messages."""
+    from shared.exceptions import sanitize_user_error_message
+
+    # Test ImageMagick delegate failure message from the user's issue
+    leakage = (
+        "magick: no encode delegate for this image format 'AVIF' @ warning/constitute.c/WriteImage/1403. "
+        "magick: unable to open image 'AVIF:/tmp/easy_convert/eb133ed8-out': No such file @ error/blob.c/OpenBlob/3701."
+    )
+    sanitized = sanitize_user_error_message(leakage)
+    assert "/tmp/" not in sanitized
+    assert "constitute.c" not in sanitized
+    assert "magick:" not in sanitized
+    assert "error/blob.c" not in sanitized
+    assert "currently not supported" in sanitized or "error occurred" in sanitized
+
+    # Clean messages should be preserved
+    clean = "Input file not found"
+    assert sanitize_user_error_message(clean) == "Input file not found"
