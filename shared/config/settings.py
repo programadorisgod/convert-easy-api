@@ -128,8 +128,9 @@ class Settings(BaseSettings):
             "tif",
             "bmp",
             "gif",
+            "svg",
         ],
-        description="Supported output image formats (SVG excluded for security)",
+        description="Supported output image formats",
     )
     image_quality: int = Field(
         default=85, ge=1, le=100, description="Default image quality for lossy formats"

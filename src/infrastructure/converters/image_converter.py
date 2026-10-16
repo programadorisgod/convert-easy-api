@@ -48,7 +48,7 @@ class ImageMagickConverter:
     QUALITY_FORMATS = {"jpg", "jpeg", "webp", "avif", "heic", "png"}
 
     # Formats that support transparency
-    TRANSPARENCY_FORMATS = {"png", "webp", "gif", "tiff", "avif"}
+    TRANSPARENCY_FORMATS = {"png", "webp", "gif", "tiff", "avif", "svg"}
 
     def __init__(self):
         """Initialize ImageMagick converter."""
@@ -114,7 +114,7 @@ class ImageMagickConverter:
 
         # Validate format
         output_format = output_format.lower()
-        if not self.settings.is_image_format_supported(output_format):
+        if not self.settings.is_image_format_supported(output_format, is_output=True):
             raise UnsupportedFormatError(output_format)
 
         # ImageMagick delegate in Linux/Debian builds is read-only for AVIF ('r--').

@@ -76,6 +76,19 @@ async def test_png_to_avif_writes_avif_bytes(png_input, tmp_path):
     assert b"avif" in data[:32] or b"avis" in data[:32] or b"mif1" in data[:32]
 
 
+@pytest.mark.asyncio
+async def test_png_to_svg_writes_svg_bytes(png_input, tmp_path):
+    """Requesting svg must produce valid SVG xml bytes via ImageMagick and potrace."""
+    import shutil
+    if not shutil.which("potrace"):
+        pytest.skip("potrace not installed on host")
+
+    out = tmp_path / "out_noext"
+    data = await _convert_to(png_input, out, "svg")
+
+    assert b"<svg" in data or b"<!DOCTYPE svg" in data
+
+
 def test_sanitize_user_error_message():
     """Verify that internal paths and tool errors are never exposed in user messages."""
     from shared.exceptions import sanitize_user_error_message

@@ -138,6 +138,8 @@ async def download_result(
             "png": "image/png",
             "gif": "image/gif",
             "webp": "image/webp",
+            "avif": "image/avif",
+            "svg": "image/svg+xml",
             "bmp": "image/bmp",
             "tiff": "image/tiff",
             "ico": "image/x-icon",
