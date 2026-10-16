@@ -48,11 +48,13 @@ class UploadCompleteFileCommand:
 
     Attributes:
         job_id: Job identifier
-        file_data: Complete file bytes
+        file_data: Complete file bytes (optional if upload_file is provided)
+        upload_file: Optional UploadFile instance for streaming directly to disk
     """
 
     job_id: str
-    file_data: bytes
+    file_data: bytes | None = None
+    upload_file: Any = None
 
 
 @dataclass(frozen=True)

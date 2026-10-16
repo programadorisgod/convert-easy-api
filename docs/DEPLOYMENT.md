@@ -82,7 +82,7 @@ cp .env.container .env
 
 Key settings:
 - `REDIS_HOST`: Redis hostname (default: `redis` in compose, `localhost` standalone)
-- `MAX_FILE_SIZE`: Maximum file size in bytes (default: 100MB)
+- `MAX_FILE_SIZE`: Maximum file size in bytes (default: 500MB, 524288000)
 - `WORKER_CONCURRENCY`: Number of concurrent conversion workers (default: 4)
 - `STORAGE_BASE_PATH`: Temporary storage path (default: `/tmp/easy-convert`)
 
@@ -399,6 +399,6 @@ podman run -d \
 
 ```bash
 # .env
-MAX_FILE_SIZE=209715200  # 200MB
-MAX_CHUNK_SIZE=20971520  # 20MB chunks
+MAX_FILE_SIZE=524288000  # 500MB
+MAX_CHUNK_SIZE=10485760  # 10MB chunks
 ```

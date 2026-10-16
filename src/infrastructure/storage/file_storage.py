@@ -18,7 +18,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import aiofiles
 import aiofiles.os
@@ -240,6 +240,49 @@ class FileStorage:
         except Exception as e:
             logger.error(f"Failed to save file {file_id}: {e}", exc_info=True)
             raise IOError(f"Failed to save file: {e}")
+
+    async def save_file_stream(
+        self, file_id: str, upload_file: Any, buffer_size: int = 1024 * 1024
+    ) -> tuple[Path, int]:
+        """Save a complete file by streaming chunks from UploadFile to disk.
+
+        Prevents buffering large files (up to 500MB) in application memory.
+
+        Args:
+            file_id: File identifier (UUID)
+            upload_file: Starlette/FastAPI UploadFile instance
+            buffer_size: Chunk size to read at a time in bytes (default 1MB)
+
+        Returns:
+            Tuple of (Path to saved file, total bytes written)
+        """
+        try:
+            self.temp_dir.mkdir(parents=True, exist_ok=True)
+            file_path = self._get_file_path(file_id)
+            temp_path = file_path.with_suffix(".tmp")
+
+            total_bytes = 0
+            try:
+                async with aiofiles.open(temp_path, "wb") as f:
+                    while True:
+                        chunk = await upload_file.read(buffer_size)
+                        if not chunk:
+                            break
+                        total_bytes += len(chunk)
+                        await f.write(chunk)
+
+                await aiofiles.os.rename(temp_path, file_path)
+            finally:
+                if temp_path.exists():
+                    await aiofiles.os.remove(temp_path)
+
+            file_size_mb = total_bytes / (1024 * 1024)
+            logger.info(f"Saved file {file_id} via stream ({file_size_mb:.2f} MB)")
+            return file_path, total_bytes
+
+        except Exception as e:
+            logger.error(f"Failed to stream file {file_id}: {e}", exc_info=True)
+            raise IOError(f"Failed to save file stream: {e}")
 
     async def get_file(self, file_id: str) -> Path:
         """Get path to input file.

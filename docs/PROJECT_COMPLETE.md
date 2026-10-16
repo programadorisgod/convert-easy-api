@@ -270,7 +270,7 @@ open htmlcov/index.html
 
 ### Current Configuration
 - **Worker concurrency**: 4 (configurable via WORKER_CONCURRENCY)
-- **Max file size**: 100MB (configurable via MAX_FILE_SIZE)
+- **Max file size**: 500MB (configurable via MAX_FILE_SIZE)
 - **Chunk size**: 10MB (configurable via MAX_CHUNK_SIZE)
 - **Conversion timeout**: 300s (configurable via MAX_CONVERSION_TIME_SECONDS)
 - **Document conversion timeout**: 900s (configurable via MAX_DOCUMENT_CONVERSION_TIME_SECONDS)
@@ -298,7 +298,7 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 
 # Limits
-MAX_FILE_SIZE=104857600  # 100MB
+MAX_FILE_SIZE=524288000  # 500MB
 MAX_CHUNK_SIZE=10485760  # 10MB
 
 # Worker

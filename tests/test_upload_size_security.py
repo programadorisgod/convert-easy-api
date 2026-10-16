@@ -287,7 +287,7 @@ class TestAppWiring:
         async def collect(message):
             sent.append(message)
 
-        # 200MB > (100MB file + 1MB multipart slack) — fast-path rejection
+        # 600MB > (500MB file + 1MB multipart slack) — fast-path rejection
         scope = {
             "type": "http",
             "http_version": "1.1",
@@ -295,7 +295,7 @@ class TestAppWiring:
             "scheme": "http",
             "path": "/api/v1/convert/xml/html",
             "query_string": b"",
-            "headers": [(b"content-length", str(200 * 1024 * 1024).encode())],
+            "headers": [(b"content-length", str(600 * 1024 * 1024).encode())],
             "client": ("127.0.0.1", 54321),
             "server": ("test", 80),
         }

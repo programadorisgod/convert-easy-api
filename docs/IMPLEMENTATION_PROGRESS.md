@@ -75,7 +75,7 @@ Each exception has specific status code and meaningful error messages.
 Pydantic Settings with environment variable support:
 - Application config (name, version, debug, API prefix)
 - Redis configuration (URL, max connections)
-- File upload limits (max size: 100MB, chunk size: 5MB)
+- File upload limits (max size: 500MB, chunk size: 5MB)
 - Job processing (TTL: 24h, cleanup: 1h, max conversion time: 5min)
 - Rate limiting (100 uploads/hour, 10 concurrent jobs per IP)
 - Image formats (JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG)

@@ -261,15 +261,27 @@ class UploadCompleteFileHandler:
                 f"Job expects {job.total_chunks} chunks, use chunk upload instead"
             )
 
-        # Validate size against the declared file size (see UploadChunkHandler)
-        if len(command.file_data) > job.file_size_bytes:
-            raise ValidationError(
-                f"File size {len(command.file_data)} exceeds declared "
-                f"file size {job.file_size_bytes}"
+        if command.upload_file is not None:
+            # Stream file directly to storage to avoid RAM spikes
+            _, actual_size = await self.storage.save_file_stream(
+                job.file_id, command.upload_file
             )
-
-        # Save file to storage
-        await self.storage.save_file(job.file_id, command.file_data)
+            if actual_size > job.file_size_bytes:
+                await self.storage.cleanup_file(job.file_id)
+                raise ValidationError(
+                    f"File size {actual_size} exceeds declared "
+                    f"file size {job.file_size_bytes}"
+                )
+        elif command.file_data is not None:
+            actual_size = len(command.file_data)
+            if actual_size > job.file_size_bytes:
+                raise ValidationError(
+                    f"File size {actual_size} exceeds declared "
+                    f"file size {job.file_size_bytes}"
+                )
+            await self.storage.save_file(job.file_id, command.file_data)
+        else:
+            raise ValidationError("No file data or upload stream provided")
 
         # Create and apply event (simulating single chunk upload)
         event = ChunkUploaded.create(
@@ -277,7 +289,7 @@ class UploadCompleteFileHandler:
             file_id=job.file_id,
             chunk_index=0,
             total_chunks=1,
-            chunk_size_bytes=len(command.file_data),
+            chunk_size_bytes=actual_size,
         )
         job.add_event(event)
 
@@ -291,7 +303,7 @@ class UploadCompleteFileHandler:
 
         return {
             "job_id": command.job_id,
-            "file_size": len(command.file_data),
+            "file_size": actual_size,
             "is_complete": True,
         }
 

@@ -155,13 +155,10 @@ async def upload_file(
 ) -> UploadChunkResponse:
     """Upload a complete file."""
     try:
-        # Read file data
-        file_data = await file.read()
-
-        # Create command
+        # Create command with streaming UploadFile to avoid RAM spikes
         command = UploadCompleteFileCommand(
             job_id=job_id,
-            file_data=file_data,
+            upload_file=file,
         )
 
         # Handle command

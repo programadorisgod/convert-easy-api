@@ -69,7 +69,10 @@ class Settings(BaseSettings):
     redis_max_connections: int = 10
 
     # File Upload
-    max_file_size_mb: int = Field(default=100, description="Maximum file size in MB")
+    max_file_size_mb: int = Field(default=500, description="Maximum file size in MB")
+    max_file_size: int = Field(
+        default=524288000, description="Maximum file size in bytes (500MB)"
+    )
     chunk_size_mb: int = Field(
         default=5, description="Chunk size for file uploads in MB"
     )

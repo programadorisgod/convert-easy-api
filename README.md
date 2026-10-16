@@ -485,7 +485,7 @@ When the limit is exceeded, the API returns `429 Too Many Requests` with a `Retr
 
 Key environment variables (see `.env.example`):
 
-- `MAX_FILE_SIZE_MB` - Maximum file size (default: 100MB)
+- `MAX_FILE_SIZE_MB` - Maximum file size (default: 500MB)
 - `JOB_TTL_HOURS` - Job metadata retention (default: 24h)
 - `REDIS_URL` - Redis connection URL
 - `TEMP_DIR` - Temporary file storage location
