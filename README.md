@@ -19,13 +19,59 @@ Easy Convert is a file conversion service designed with privacy as the core prin
 | **Documents** | Convert between formats via Pandoc/LibreOffice | DOCX, PDF, ODT, EPUB, Markdown, HTML, LaTeX, and 30+ more |
 | **XML** | Convert to JSON, YAML, HTML; transform via XSLT | XML |
 
+### Developer Interfaces (CLI & MCP)
+
+Easy Convert includes native interfaces for terminal power users and AI agents:
+
+#### 💻 CLI (`easy-convert`)
+Run conversions, background removal, PDF manipulation, audio/video encoding, and more directly from any terminal:
+```bash
+# Convert image format
+easy-convert image convert photo.png -f webp -q 85
+
+# Convert documents (DOCX, Markdown, etc.) to PDF
+easy-convert doc convert report.docx -f pdf
+
+# Merge PDF files
+easy-convert pdf merge doc1.pdf doc2.pdf -o merged.pdf
+
+# Audio & Video conversions
+easy-convert audio convert song.wav -f mp3 -b 320k --normalize
+easy-convert video convert clip.mp4 -f webm --crf 23
+```
+> 📖 Para ver todos los comandos, parámetros y ejemplos completos, consulta la [Documentación de la CLI (docs/CLI_GUIDE.md)](docs/CLI_GUIDE.md).
+
+#### 🤖 MCP Server (`easy-convert mcp`)
+Connect your local or self-hosted Easy Convert engine to AI assistants (Cursor, Claude Desktop, Copilot, Antigravity) via Model Context Protocol:
+```bash
+# Start MCP server over stdio
+easy-convert mcp
+
+# Or via dedicated binary
+easy-convert-mcp
+```
+Configure it in your editor's `mcp.json`:
+```json
+{
+  "mcpServers": {
+    "easy-convert": {
+      "command": "easy-convert-mcp",
+      "args": []
+    }
+  }
+}
+```
+> 📖 Para conocer las 15 tools expuestas, comparativa con CLI y configuración avanzada, consulta la [Guía de MCP (docs/MCP_AND_CLI_GUIDE.md)](docs/MCP_AND_CLI_GUIDE.md).
+
+---
+
 ### Docs Per Feature
 
-- **💻 CLI Documentation**: [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
-- **🤖 MCP & CLI Guide**: [docs/MCP_AND_CLI_GUIDE.md](docs/MCP_AND_CLI_GUIDE.md)
-- **📷 Images**: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)
-- **📄 Documents/PDF/XML**: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)
-- **🪵 Logging & Error Handling**: [docs/LOGGING.md](docs/LOGGING.md)
+- 💻 **CLI Documentation**: [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
+- 🤖 **MCP & CLI Guide**: [docs/MCP_AND_CLI_GUIDE.md](docs/MCP_AND_CLI_GUIDE.md)
+- 📷 **Images**: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)
+- 📄 **Documents/PDF/XML**: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)
+- 🪵 **Logging & Error Handling**: [docs/LOGGING.md](docs/LOGGING.md)
 
 ## Architecture
 
@@ -189,7 +235,6 @@ Once running, visit:
 - [x] **Redis + BullMQ** — Event store, job queue, persistence
 - [x] **Rate Limiting** — Redis sliding window, per-IP, configurable tiers (general/uploads), fail-open
 - [x] **69+ Tests** — Unit + Integration across all phases
-- [x] **OpenAPI Docs** — Swagger UI + ReDoc auto-generated
 
 ## API Examples
 
@@ -223,18 +268,35 @@ curl http://localhost:8000/api/v1/jobs/abc123/download -o output.webp
 ### 2. Image Processing (Phase 1)
 
 ```bash
-# Full pipeline: remove BG + crop + compress + watermark
-curl -X POST http://localhost:8000/api/v1/process/image \
+# Compress image
+curl -X POST http://localhost:8000/api/v1/process/compress \
   -H "Content-Type: application/json" \
   -d '{
     "job_id": "abc123",
-    "output_format": "png",
-    "remove_background": true,
-    "crop": {"mode": "square", "square_size": 1080},
-    "compress": true, "compression_level": "balanced",
-    "watermark": {"type": "text", "text": "© 2026 Brand", "position": "bottom-right", "opacity": 0.7}
+    "output_format": "jpg",
+    "level": "balanced",
+    "quality": 80
   }'
-# → 202 Accepted with pipeline config
+
+# Add watermark (text or logo)
+curl -X POST http://localhost:8000/api/v1/process/watermark \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "abc123",
+    "output_format": "jpg",
+    "type": "text",
+    "text": "© 2026 MyBrand",
+    "position": "bottom-right",
+    "opacity": 0.7
+  }'
+
+# Combine multiple uploaded images into a single PDF
+curl -X POST http://localhost:8000/api/v1/process/image/to-pdf \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_id": "page1-job-id",
+    "source_job_ids": ["page2-job-id", "page3-job-id"]
+  }'
 ```
 
 ### 3. Audio Conversion (FFmpeg)
@@ -242,14 +304,14 @@ curl -X POST http://localhost:8000/api/v1/process/image \
 ```bash
 curl -X POST http://localhost:8000/api/v1/process/audio \
   -H "Content-Type: application/json" \
-  -d '{"job_id": "abc123", "output_format": "mp3", "bitrate": "192k", "channels": 2}'
+  -d '{"job_id": "abc123", "output_format": "mp3", "bitrate": "192k", "channels": 2, "normalize_volume": true}'
 # → 202 Accepted
 ```
 
 ### 4. Video Conversion (FFmpeg)
 
 ```bash
-# Convert format
+# Convert format with CRF quality
 curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
   -d '{"job_id": "abc123", "output_format": "mkv", "crf": 23, "resolution": "1920:1080"}'
@@ -259,7 +321,7 @@ curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
   -d '{"job_id": "abc123", "output_format": "mp3", "extract_audio": true, "audio_output_format": "mp3", "audio_bitrate": "192k"}'
 
-# Remove audio track
+# Remove audio track (mute)
 curl -X POST http://localhost:8000/api/v1/process/video \
   -H "Content-Type: application/json" \
   -d '{"job_id": "abc123", "output_format": "mp4", "remove_audio": true}'
@@ -278,16 +340,23 @@ curl -X POST http://localhost:8000/api/v1/process/pdf/split-range \
   -H "Content-Type: application/json" \
   -d '{"job_id": "abc123", "start_page": 1, "end_page": 5}'
 
+# Extract specific pages
+curl -X POST http://localhost:8000/api/v1/process/pdf/extract-pages \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "page_numbers": [1, 3, 5]}'
+
 # Encrypt
 curl -X POST http://localhost:8000/api/v1/process/pdf/encrypt \
   -H "Content-Type: application/json" \
   -d '{"job_id": "abc123", "user_password": "secret123", "owner_password": "admin456"}'
 
-# Full list: merge, split-range, extract-pages, delete-pages, rotate, metadata,
-#            encrypt, decrypt, add-text, add-image, draw-rectangle, add-annotation, set-mediabox
+# Decrypt
+curl -X POST http://localhost:8000/api/v1/process/pdf/decrypt \
+  -H "Content-Type: application/json" \
+  -d '{"job_id": "abc123", "password": "secret123"}'
 ```
 
-### 6. XML Conversion
+### 6. XML Conversion (Synchronous)
 
 ```bash
 # XML to JSON
@@ -300,14 +369,26 @@ curl -X POST http://localhost:8000/api/v1/convert/xml/yaml \
   -F "file=@data.xml" \
   -F "indent=2"
 
-# XML to HTML (with template)
+# XML to HTML
 curl -X POST http://localhost:8000/api/v1/convert/xml/html \
   -F "file=@data.xml" \
-  -F "template=table" \
-  -F "title=My Data"
+  -F "template=table"
 ```
 
-### 7. Document Processing (Pandoc/LibreOffice)
+### 7. Base64 & Data URI Conversion (In-Memory)
+
+```bash
+# Image to Base64 / Data URI
+curl -X POST http://localhost:8000/api/v1/convert/image/to-base64 \
+  -F "file=@logo.png"
+
+# Base64 string or Data URI to Image
+curl -X POST http://localhost:8000/api/v1/convert/base64/to-image \
+  -F "data=data:image/png;base64,iVBORw0KGgo..." \
+  -o restored.png
+```
+
+### 8. Document Processing (Pandoc/LibreOffice)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/process/document \
@@ -315,7 +396,7 @@ curl -X POST http://localhost:8000/api/v1/process/document \
   -d '{"job_id": "abc123", "output_format": "pdf", "preferred_engine": "auto"}'
 ```
 
-### 8. Job Management
+### 9. Job Management
 
 ```bash
 # Status
@@ -329,8 +410,6 @@ curl -X POST http://localhost:8000/api/v1/jobs/abc123/cancel \
 # Download (file deleted after download)
 curl http://localhost:8000/api/v1/jobs/abc123/download -o result.pdf
 ```
-
-**📖 API Reference**: [Swagger UI](http://localhost:8000/docs) · [ReDoc](http://localhost:8000/redoc)
 ### Project Structure
 
 ```
