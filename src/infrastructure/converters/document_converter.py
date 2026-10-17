@@ -211,9 +211,10 @@ class DocumentConverter:
             raise ProcessingError("Document conversion did not produce an output file")
 
         # Normalize to storage canonical path without extension.
-        if output_path.exists():
-            output_path.unlink()
-        produced.replace(output_path)
+        if produced.resolve() != output_path.resolve():
+            if output_path.exists():
+                output_path.unlink()
+            produced.replace(output_path)
 
         return output_path
 

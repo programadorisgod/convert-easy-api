@@ -14,6 +14,10 @@
       "headers": {
         "CONTEXT7_API_KEY": "ctx7sk-a777c2db-4891-4ae7-90db-6401b02218cc"
       }
+    },
+    "easy-convert": {
+      "command": "easy-convert-mcp",
+      "args": []
     }
   }
 }
