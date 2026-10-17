@@ -227,7 +227,6 @@ Once running, visit:
 - [x] **XML Conversion** — XML → JSON / YAML / HTML / XSLT transform
 - [x] **Audio Conversion (FFmpeg)** — 10 input → 7 output, bitrate/sample rate/channels/trim/volume
 - [x] **Video Conversion (FFmpeg)** — 10 input → 8 output, CRF/resolution/FPS/trim/extract/remove audio
-- [ ] Video Phase 2 (codec selection, watermark, ffprobe) — spec complete, pending
 
 ### Common Infrastructure
 - [x] **File Upload Workflow** — Create job → Upload (<10MB direct, >10MB chunked) → Start conversion
