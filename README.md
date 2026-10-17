@@ -24,7 +24,7 @@ Easy Convert is a file conversion service designed with privacy as the core prin
 Easy Convert includes native interfaces for terminal power users and AI agents:
 
 #### 💻 CLI (`easy-convert`)
-Run conversions, background removal, PDF manipulation, audio/video encoding, and more directly from any terminal:
+Run conversions, PDF manipulation, audio/video encoding, and more directly from any terminal:
 ```bash
 # Convert image format
 easy-convert image convert photo.png -f webp -q 85
