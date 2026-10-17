@@ -207,28 +207,8 @@ Once running, visit:
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI JSON**: http://localhost:8000/openapi.json
 
-## Project Status
+## Common Infrastructure
 
-### ✅ Phase 1: Advanced Image Processing
-*Full docs: [docs/FASE_1_IMAGE_PROCESSING.md](docs/FASE_1_IMAGE_PROCESSING.md)*
-
-- [x] **200+ Format Conversions** - ImageMagick: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG
-- [x] **Background Removal** - AI-powered with rembg (U2Net, 100% local)
-- [x] **Smart Compression** - 3 levels (low/balanced/strong), mozjpeg/oxipng/pngquant/jpegoptim
-- [x] **Watermarking** - Text & logo, 6 positions + diagonal, opacity control
-- [x] **Advanced Cropping** - 4 modes (coordinates, aspect ratio, square, auto)
-- [x] **Privacy Guaranteed** - Auto EXIF stripping, local processing, no external APIs
-
-### ✅ Phase 2: Document Processing
-*Full docs: [docs/FASE_2_DOCUMENT_PROCESSING.md](docs/FASE_2_DOCUMENT_PROCESSING.md)*
-
-- [x] **PDF Manipulation** — Merge, split, extract pages, rotate, metadata, encrypt/decrypt, add text/image, annotations, draw rectangles, adjustable layout
-- [x] **Document Conversion** — Pandoc + LibreOffice engines, auto-selection via MIME validation
-- [x] **XML Conversion** — XML → JSON / YAML / HTML / XSLT transform
-- [x] **Audio Conversion (FFmpeg)** — 10 input → 7 output, bitrate/sample rate/channels/trim/volume
-- [x] **Video Conversion (FFmpeg)** — 10 input → 8 output, CRF/resolution/FPS/trim/extract/remove audio
-
-### Common Infrastructure
 - [x] **File Upload Workflow** — Create job → Upload (<10MB direct, >10MB chunked) → Start conversion
 - [x] **Job Management** — Status check, cancel, download (file deleted after download)
 - [x] **Redis + BullMQ** — Event store, job queue, persistence
@@ -412,39 +392,56 @@ curl http://localhost:8000/api/v1/jobs/abc123/download -o result.pdf
 ### Project Structure
 
 ```
-easy_convert_api/
+convert-easy-api/
 ├── src/
-│   ├── domain/job/          # Domain entities, events, logic
-│   ├── application/job/     # Commands, handlers, services
-│   ├── infrastructure/      # Queue, storage, persistence, workers
-│   ├── interfaces/          # HTTP & WebSocket endpoints
-│   ├── main.py             # FastAPI app
-│   └── lifespan.py         # App lifecycle management
+│   ├── domain/               # Domain entities, value objects and events
+│   │   └── job/              # Job aggregate, JobStatus, JobEvents
+│   ├── application/          # Application layer (CQRS commands & handlers)
+│   ├── infrastructure/       # Technical adapters and services
+│   │   ├── converters/       # Image, Audio, Video, Document, PDF, XML
+│   │   ├── persistence/      # Redis job repository
+│   │   ├── queue/            # BullMQ job queue adapter & worker
+│   │   ├── storage/          # Temporary file storage (/tmp)
+│   │   ├── logging/          # Structured JSON logging & request tracing
+│   │   ├── rate_limiter.py   # Redis sliding window rate limiter
+│   │   ├── mime_validator.py # libmagic MIME verification
+│   │   └── worker/           # Background conversion worker
+│   ├── interfaces/           # Entrypoints & delivery mechanisms
+│   │   ├── http/             # FastAPI controllers, schemas, exception handlers
+│   │   ├── cli/              # Typer CLI application (`easy-convert`)
+│   │   └── mcp/              # FastMCP Model Context Protocol server (`easy-convert mcp`)
+│   ├── main.py               # FastAPI application factory
+│   └── lifespan.py           # Application lifecycle & connection management
 ├── shared/
-│   ├── config/             # Settings and configuration
-│   ├── events/             # Event bus
-│   ├── queue/              # Queue abstractions
-│   └── exceptions.py       # Custom exceptions
-├── tests/                  # Test suite
-├── pyproject.toml         # Project dependencies
-└── .env.example          # Environment template
+│   ├── config/               # Pydantic settings & environment validation
+│   ├── events/               # Event bus abstractions
+│   ├── queue/                # Queue port interfaces
+│   ├── exceptions.py         # Custom domain and API exceptions
+│   └── http.py               # HTTP security helpers (header sanitization)
+├── tests/                    # 194 unit, integration, CLI, MCP and security tests
+├── pyproject.toml            # Project dependencies & CLI entrypoints
+└── docker-compose.yaml       # Multi-container Redis + API orchestration
 ```
 
 ### Running Tests
 
-**Complete test suite with 69 tests** covering all phases.
+**Complete test suite with 194 tests** covering API, CLI, MCP tools, converters, and security.
 
 ```bash
-# Run all tests (unit + integration, requires FFmpeg)
+# Run all tests
 uv run pytest tests/ -v
 
-# Run without integration tests (no FFmpeg needed)
+# Run without integration tests (no FFmpeg/external binaries needed)
 uv run pytest tests/ --ignore=tests/test_audio_integration.py --ignore=tests/test_video_integration.py -v
 
-# Run specific converter tests
-uv run pytest tests/test_video_converter.py -v  # 34 video unit tests
-uv run pytest tests/test_audio_converter.py -v  # audio unit tests
-uv run pytest tests/test_image_converter.py -v  # image unit tests
+# Run specific test suites
+uv run pytest tests/test_cli.py -v                     # CLI interface tests
+uv run pytest tests/test_mcp.py -v                     # FastMCP tools tests
+uv run pytest tests/test_video_converter.py -v         # Video conversion unit tests
+uv run pytest tests/test_audio_converter.py -v         # Audio conversion unit tests
+uv run pytest tests/test_image_converter_behavior.py -v# Image conversion tests
+uv run pytest tests/test_base64_controller.py -v       # Base64 in-memory conversion tests
+uv run pytest tests/test_xml_conversion_security.py -v # XML conversion security tests
 
 # With coverage report
 uv run pytest tests/ --cov=src --cov=shared --cov-report=html
@@ -463,24 +460,33 @@ The project follows Clean Code principles:
 
 ## API Flow
 
+All endpoints are mounted under `/api/v1` (except `/health`, `/scalar`, `/docs`, `/redoc`).
+
 ### Quick Reference
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/upload/create` | POST | Create job (returns `job_id` + `file_id`) |
-| `/upload/{job_id}/file` | POST | Upload complete file (<10MB) |
-| `/upload/{job_id}/chunk` | POST | Upload chunk (>10MB, N times) |
-| `/upload/{job_id}/merge` | POST | Merge chunks after upload |
-| `/upload/{job_id}/start` | POST | Start conversion process |
-| `/jobs/{job_id}` | GET | Get job status |
-| `/jobs/{job_id}/cancel` | POST | Cancel pending/processing job |
-| `/jobs/{job_id}/download` | GET | Download result (auto-deletes) |
-| `/process/image` | POST | Full image pipeline |
-| `/process/audio` | POST | Audio conversion |
-| `/process/video` | POST | Video conversion |
-| `/process/pdf/*` | POST | 13 PDF operations (merge, split, encrypt...) |
-| `/process/document` | POST | Document conversion (auto engine) |
-| `/convert/xml/*` | POST | XML → JSON/YAML/HTML/XSLT |
+| `/api/v1/upload/create` | POST | Create job (returns `job_id` + `file_id`) |
+| `/api/v1/upload/{job_id}/file` | POST | Upload complete file (<10MB) |
+| `/api/v1/upload/{job_id}/chunk` | POST | Upload chunk (>10MB, sequential) |
+| `/api/v1/upload/{job_id}/merge` | POST | Merge chunks after upload |
+| `/api/v1/upload/{job_id}/start` | POST | Start conversion process |
+| `/api/v1/jobs/{job_id}` | GET | Get job status & metadata |
+| `/api/v1/jobs/{job_id}/cancel` | POST | Cancel pending/processing job |
+| `/api/v1/jobs/{job_id}/download` | GET | Download result (auto-deletes after download) |
+| `/api/v1/process/remove-background` | POST | AI background removal (rembg/U2Net) |
+| `/api/v1/process/compress` | POST | Smart image compression (low/balanced/strong) |
+| `/api/v1/process/watermark` | POST | Text & logo watermarking with opacity |
+| `/api/v1/process/image/to-pdf` | POST | Combine multiple uploaded images into a PDF |
+| `/api/v1/process/audio` | POST | Audio conversion (format, bitrate, channels, normalize) |
+| `/api/v1/process/video` | POST | Video conversion (CRF, resolution, extract audio, mute) |
+| `/api/v1/process/document` | POST | Document conversion (Pandoc + LibreOffice auto engine) |
+| `/api/v1/process/pdf/*` | POST | 13 PDF operations (merge, split-range, extract, encrypt...) |
+| `/api/v1/convert/xml/*` | POST | Synchronous XML → JSON / YAML / HTML / XSLT |
+| `/api/v1/convert/image/to-base64` | POST | In-memory image to Base64 data URI |
+| `/api/v1/convert/base64/to-image` | POST | In-memory Base64 data URI to binary image |
+| `/api/v1/ws/{job_id}` | WS | WebSocket for real-time progress & status events |
+| `/health` | GET | Health check endpoint |
 
 ## Privacy Guarantees
 
